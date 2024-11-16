@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES6", // Targeting modern JavaScript
+    "moduleResolution": "node", // Allows Node-style module resolution
+    "esModuleInterop": true, // Enable interoperability between ES modules and CommonJS
+    "strict": true, // Enable strict type-checking options
+    "jsx": "react-jsx", // Enables the new JSX transform for React 17+
+    "skipLibCheck": true, // Skip checking library types (useful for large projects)
+    "forceConsistentCasingInFileNames": true // Ensures consistent casing in filenames
+  },
+  "include": [
+    "src/**/*.ts" // Include all TypeScript files in the 'src' directory
+  ],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}

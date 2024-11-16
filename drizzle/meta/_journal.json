@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1731013237811,
+      "tag": "0000_cynical_ender_wiggin",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1731365417807,
+      "tag": "0001_magenta_logan",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1731618941635,
+      "tag": "0002_far_whizzer",
+      "breakpoints": true
+    }
+  ]
+}
