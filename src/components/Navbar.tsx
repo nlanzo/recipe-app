@@ -3,7 +3,7 @@ import Grid from "@mui/material/Grid2"
 import { Link } from "react-router-dom" // Assuming React Router is used for navigation
 import { useState } from "react"
 
-const Navbar = () => {
+export default function Navbar() {
   // Replace this with your actual authentication logic
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
@@ -90,5 +90,3 @@ const Navbar = () => {
     </AppBar>
   )
 }
-
-export default Navbar

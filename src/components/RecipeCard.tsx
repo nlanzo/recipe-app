@@ -7,21 +7,21 @@ import {
 } from "@mui/material"
 import { useNavigate } from "react-router-dom"
 
-interface RecipeCardProps {
+export interface RecipeCardProps {
   id: number
   title: string
-  imageUrl: string
-  totalTime: number
+  imageUrl: string | null
+  totalTimeInMinutes: number
   numberOfServings: number
 }
 
-const RecipeCard = ({
+export default function RecipeCard({
   id,
   title,
   imageUrl,
-  totalTime,
+  totalTimeInMinutes,
   numberOfServings,
-}: RecipeCardProps) => {
+}: RecipeCardProps) {
   const navigate = useNavigate()
 
   // Function to handle card click
@@ -32,17 +32,22 @@ const RecipeCard = ({
   return (
     <Card className="border border-secondary shadow-md">
       <CardActionArea onClick={handleCardClick}>
-        <CardMedia component="img" height="180" image={imageUrl} alt={title} />
+        <CardMedia
+          component="img"
+          height="180"
+          image={imageUrl || "not found"}
+          alt={title}
+        />
         <CardContent className="bg-primary text-secondary">
           <Typography variant="h6" component="div">
             {title}
           </Typography>
-          <Typography variant="body2">Total Time: {totalTime} mins</Typography>
+          <Typography variant="body2">
+            Total Time: {totalTimeInMinutes} mins
+          </Typography>
           <Typography variant="body2">Servings: {numberOfServings}</Typography>
         </CardContent>
       </CardActionArea>
     </Card>
   )
 }
-
-export default RecipeCard

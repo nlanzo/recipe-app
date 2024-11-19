@@ -5,6 +5,7 @@ import {
   serial,
   text,
   timestamp,
+  boolean,
 } from "drizzle-orm/pg-core"
 
 import { relations } from "drizzle-orm"
@@ -78,6 +79,8 @@ export const imagesTable = pgTable("images", {
     .notNull(), // Foreign key to recipes table
   imageUrl: varchar("image_url", { length: 500 }).notNull(), // URL or file path of the image
   altText: varchar("alt_text", { length: 255 }), // Optional alt text for accessibility
+  createdAt: timestamp().defaultNow().notNull(),
+  isPrimary: boolean("is_primary").default(false).notNull(), // Indicates if the image is the primary image for the recipe
 })
 
 // Relations
