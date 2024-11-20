@@ -1,8 +1,7 @@
 import Grid from "@mui/material/Grid2"
 import { Box, Typography } from "@mui/material"
 import RecipeCard from "./RecipeCard"
-import { getRecipeCardData } from "../db/recipeQueries"
-import { useEffect, useState } from "react"
+import { useDataLoader } from "./useDataLoader"
 
 interface Recipe {
   id: number
@@ -13,26 +12,15 @@ interface Recipe {
 }
 
 export default function RecipeList() {
-  const [recipes, setRecipes] = useState<Recipe[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const data = useDataLoader<Recipe[]>("http://localhost:3000/api/recipes")
 
-  useEffect(() => {
-    const fetchRecipes = async () => {
-      try {
-        const data = await getRecipeCardData()
-        setRecipes(data)
-      } catch (err) {
-        setError("Failed to fetch recipes. Please try again later.")
-      }
-    }
-
-    fetchRecipes()
-  }, [])
-
+  if (data.isLoading) {
+    return <Typography>Loading...</Typography>
+  }
   return (
-    <Box sx={{ p: 2 }}>
-      {error ? (
-        <Typography color="error">{error}</Typography>
+    <Box sx={{ p: 2, maxWidth: "xl", mx: "auto" }}>
+      {data.error ? (
+        <Typography color="error">{data.error}</Typography>
       ) : (
         <Grid
           container
@@ -40,7 +28,7 @@ export default function RecipeList() {
           justifyContent="center"
           alignItems="stretch"
         >
-          {recipes.map((recipe) => (
+          {data.data?.map((recipe) => (
             <Grid
               size={{ xs: 12, sm: 6, md: 4 }}
               key={recipe.id}

@@ -1,11 +1,12 @@
+import { Box, Typography } from "@mui/material"
 import RecipeList from "../components/RecipeList"
 
 type Props = {}
 export default function Recipes({}: Props) {
   return (
-    <div>
-      <h2>All Recipes</h2>
+    <Box margin={4} alignItems={"center"} sx={{ maxWidth: "xl", mx: "auto" }}>
+      <Typography component="h2">All Recipes</Typography>
       <RecipeList />
-    </div>
+    </Box>
   )
 }

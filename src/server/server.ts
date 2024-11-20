@@ -1,20 +1,39 @@
 // server.ts
 import express, { Request, Response } from "express"
+import cors from "cors"
 import multer from "multer"
 import AWS from "aws-sdk"
+import { Upload } from "@aws-sdk/lib-storage"
+import { PutObjectCommandInput, S3 } from "@aws-sdk/client-s3"
+import { getRecipeById, getRecipeCardData } from "../db/recipeQueries"
 
 // Initialize Express app
 const app = express()
 const port = 3000
+app.use(cors())
+app.use(express.json())
 
 // Initialize AWS S3
+// JS SDK v3 does not support global configuration.
+// Codemod has attempted to pass values to each service client in this file.
+// You may need to update clients outside of this file, if they use global config.
 AWS.config.update({
   region: "us-east-2", // Your AWS region
   accessKeyId: process.env.AWS_ACCESS_KEY_ID!, // Use environment variables for security
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
 })
 
-const s3 = new AWS.S3()
+const s3 = new S3({
+  // Your AWS region
+  region: "us-east-2",
+
+  credentials: {
+    // Use environment variables for security
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+})
 
 // Configure Multer to handle file uploads
 const storage = multer.memoryStorage() // Store uploaded files in memory
@@ -27,7 +46,7 @@ interface FileRequest extends Request {
 
 // Function to upload image to S3
 const uploadImageToS3 = async (file: Express.Multer.File): Promise<string> => {
-  const params: AWS.S3.PutObjectRequest = {
+  const params: PutObjectCommandInput = {
     Bucket: process.env.AWS_BUCKET_NAME!, // Your bucket name
     Key: `images/${Date.now()}-${file.originalname}`, // Unique file name
     Body: file.buffer, // The binary data of the file
@@ -36,7 +55,13 @@ const uploadImageToS3 = async (file: Express.Multer.File): Promise<string> => {
   }
 
   try {
-    const uploadResult = await s3.upload(params).promise()
+    const uploadResult = await new Upload({
+      client: s3,
+      params,
+    }).done()
+    if (!uploadResult.Location) {
+      throw new Error("Failed to get the uploaded file location")
+    }
     return uploadResult.Location // Return the URL of the uploaded file
   } catch (error) {
     console.error("Error uploading image to S3:", error)
@@ -62,9 +87,22 @@ app.post(
       res.status(200).json({ imageUrl })
     } catch (error) {
       res.status(500).send("Failed to upload image")
+      console.error("Failed to upload image:", error)
     }
   }
 )
+
+// Query the database for the recipe with the specified ID
+app.get("/api/recipes/:id", async (req: Request, res: Response) => {
+  const recipeId = parseInt(req.params.id)
+  const recipe = await getRecipeById(recipeId)
+  res.json(recipe)
+})
+
+app.get("/api/recipes", async (_req: Request, res: Response) => {
+  const recipes = await getRecipeCardData()
+  res.json(recipes)
+})
 
 // Start the server
 app.listen(port, () => {

@@ -7,6 +7,9 @@ export default {
         primary: "#FFC567", // Primary color
         secondary: "#046E1B", // Secondary color
       },
+      fontFamily: {
+        sans: ["Roboto", "sans-serif"], // Use Roboto for sans-serif
+      },
     },
   },
   plugins: [],

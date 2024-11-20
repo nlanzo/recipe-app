@@ -1,18 +1,25 @@
 {
   "compilerOptions": {
     "target": "ES6", // Targeting modern JavaScript
+    "module": "ESNext", // Specify module code generation
     "moduleResolution": "node", // Allows Node-style module resolution
     "esModuleInterop": true, // Enable interoperability between ES modules and CommonJS
     "strict": true, // Enable strict type-checking options
+    "rootDir": "./src",
+    "outDir": "./dist", // Specify the output directory for compiled files
+    "lib": ["ESNext", "DOM"], // Include the DOM library
     "jsx": "react-jsx", // Enables the new JSX transform for React 17+
     "skipLibCheck": true, // Skip checking library types (useful for large projects)
     "forceConsistentCasingInFileNames": true // Ensures consistent casing in filenames
   },
+  "ts-node": {
+    "esm": true
+  },
   "include": [
-    "src/**/*.ts" // Include all TypeScript files in the 'src' directory
+    "./src/**/*" // Include all TypeScript files in the 'src' directory
   ],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+  "exclude": [
+    "node_modules",
+    "dist" // Exclude the 'node_modules' directory
   ]
 }

@@ -2,27 +2,18 @@ import { Box, Typography } from "@mui/material"
 
 export default function About() {
   return (
-    <Box
-      component="div"
-      className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-primary to-secondary text-white p-8"
-    >
-      <Typography variant="h2" className="font-bold mb-6 text-center">
-        About Recipe App
+    <Box component="div" sx={{ maxWidth: "xl", mx: "auto", mt: 5 }}>
+      <Typography variant="h2" sx={{ mb: 4, fontWeight: 500 }}>
+        About RecipeApp
       </Typography>
 
-      <Typography
-        variant="body1"
-        className="text-lg text-center max-w-3xl mb-4 leading-relaxed"
-      >
+      <Typography variant="h5" sx={{ mb: 2 }}>
         Discover and share your favorite recipes from around the world. Whether
         you're a professional chef or just getting started, Recipe App is your
         go-to platform for culinary inspiration.
       </Typography>
 
-      <Typography
-        variant="body1"
-        className="text-lg text-center max-w-3xl mb-4 leading-relaxed"
-      >
+      <Typography variant="h5" sx={{ mb: 2 }}>
         Our mission is to bring people together through the love of cooking.
         From hearty family meals to exquisite dishes, we aim to make the cooking
         experience joyful and accessible for everyone. Share your culinary
@@ -30,10 +21,7 @@ export default function About() {
         kitchen adventures.
       </Typography>
 
-      <Typography
-        variant="body1"
-        className="text-lg text-center max-w-3xl leading-relaxed"
-      >
+      <Typography variant="h5" sx={{ mb: 2 }}>
         Whether it’s creating a delicious dessert for a special occasion or
         whipping up a quick weeknight dinner, Recipe App empowers you with the
         tools and community to succeed in the kitchen. Let's make cooking more

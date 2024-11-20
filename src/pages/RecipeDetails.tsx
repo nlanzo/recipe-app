@@ -1,9 +1,18 @@
-import { useEffect, useState } from "react"
-import { getRecipeById } from "../db/recipeQueries"
+import { useState } from "react"
+import {
+  Box,
+  Typography,
+  Button,
+  CardMedia,
+  Stack,
+  Divider,
+} from "@mui/material"
+import Grid from "@mui/material/Grid2"
 import { useParams } from "react-router-dom"
+import { useDataLoader } from "../components/useDataLoader"
 
 interface RecipeDetails {
-  title: string
+  name: string
   author: string | null
   images: { imageUrl: string; altText: string | null }[]
   description: string | null
@@ -21,90 +30,141 @@ interface RecipeDetails {
 export default function RecipeDetails() {
   const { id } = useParams()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const [recipe, setRecipe] = useState<RecipeDetails | null>(null)
-
-  useEffect(() => {
-    const fetchRecipe = async () => {
-      try {
-        const data = await getRecipeById(Number(id))
-        setRecipe(data)
-      } catch (err) {
-        console.error(err)
-      }
-    }
-
-    fetchRecipe()
-  }, [id])
-
-  const handlePrevImage = () => {
-    setCurrentImageIndex((prevIndex) =>
-      recipe ? (prevIndex > 0 ? prevIndex - 1 : recipe.images.length - 1) : 0
-    )
-  }
+  const data = useDataLoader<RecipeDetails>(
+    `http://localhost:3000/api/recipes/${id}`
+  )
 
   const handleNextImage = () => {
     setCurrentImageIndex((prevIndex) =>
-      recipe ? (prevIndex < recipe.images.length - 1 ? prevIndex + 1 : 0) : 0
+      data.data && data.data.images
+        ? (prevIndex + 1) % data.data.images.length
+        : 0
     )
   }
 
+  const handlePrevImage = () => {
+    setCurrentImageIndex((prevIndex) => {
+      if (data.data && data.data.images) {
+        return (
+          (prevIndex - 1 + data.data.images.length) % data.data.images.length
+        )
+      }
+      return 0
+    })
+  }
+
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white shadow-md rounded-lg">
-      {/* Recipe Title */}
-      <h1 className="text-4xl font-bold text-secondary mb-4">
-        {recipe?.title}
-      </h1>
-      <p className="text-lg text-gray-600 mb-6">By {recipe?.author}</p>
+    <div>
+      {!data.isLoading ? (
+        <Box sx={{ padding: 4 }}>
+          {data.error ? (
+            <Typography color="error">{data.error}</Typography>
+          ) : null}
+          {/* Recipe Title */}
+          <Typography variant="h4" gutterBottom>
+            {data.data?.name}
+          </Typography>
 
-      {/* Recipe Images */}
-      <div className="relative w-full h-64 mb-6">
-        {recipe && (
-          <img
-            src={recipe.images[currentImageIndex].imageUrl}
-            alt={
-              recipe.images[currentImageIndex].altText ||
-              `Recipe image ${currentImageIndex + 1}`
-            }
-            className="w-full h-full object-cover rounded-lg"
-          />
-        )}
-        <button
-          onClick={handlePrevImage}
-          className="absolute top-1/2 left-2 transform -translate-y-1/2 bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center shadow-md"
-        >
-          ◀
-        </button>
-        <button
-          onClick={handleNextImage}
-          className="absolute top-1/2 right-2 transform -translate-y-1/2 bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center shadow-md"
-        >
-          ▶
-        </button>
-      </div>
-      <p className="text-gray-700 text-lg mb-6">{recipe?.description}</p>
+          {/* Author */}
+          <Typography variant="subtitle1" color="textSecondary" gutterBottom>
+            By {data.data?.author}
+          </Typography>
 
-      {/* Recipe Details */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <p className="font-bold text-secondary">Active Time:</p>
-        <p>{recipe?.activeTimeInMinutes} minutes</p>
-        <p className="font-bold text-secondary">Total Time:</p>
-        <p>{recipe?.totalTimeInMinutes} minutes</p>
-        <p className="font-bold text-secondary">Servings:</p>
-        <p>{recipe?.numberOfServings}</p>
-      </div>
+          <Divider sx={{ my: 2 }} />
 
-      {/* Ingredients */}
-      <ul className="list-disc list-inside mb-6">
-        {recipe?.ingredients.map((ingredient, index) => (
-          <li key={index} className="text-gray-700">
-            {ingredient.name} : {ingredient.quantity} {ingredient.unit}
-          </li>
-        ))}
-      </ul>
+          {/* Image Carousel */}
+          <Box sx={{ position: "relative", mb: 4 }}>
+            <CardMedia
+              component="img"
+              image={data.data?.images[currentImageIndex].imageUrl}
+              alt={
+                data.data?.images[currentImageIndex].altText || "Recipe image"
+              }
+              sx={{
+                width: "100%",
+                maxHeight: "400px",
+                objectFit: "cover",
+                borderRadius: 2,
+              }}
+            />
+            <Box
+              sx={{
+                position: "absolute",
+                top: "50%",
+                left: 0,
+                transform: "translateY(-50%)",
+              }}
+            >
+              <Button onClick={handlePrevImage} variant="contained">
+                {"<"}
+              </Button>
+            </Box>
+            <Box
+              sx={{
+                position: "absolute",
+                top: "50%",
+                right: 0,
+                transform: "translateY(-50%)",
+              }}
+            >
+              <Button onClick={handleNextImage} variant="contained">
+                {">"}
+              </Button>
+            </Box>
+          </Box>
 
-      {/* Instructions */}
-      <h2 className="text-2xl font-bold text-secondary mb-4">Instructions</h2>
-      <p className="text-gray-700">{recipe?.instructions}</p>
+          {/* Description */}
+          <Typography variant="body1" gutterBottom>
+            {data.data?.description}
+          </Typography>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Recipe Details */}
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 4 }}>
+              <Typography variant="subtitle2">Active Time:</Typography>
+              <Typography>{data.data?.activeTimeInMinutes} minutes</Typography>
+            </Grid>
+            <Grid size={{ xs: 4 }}>
+              <Typography variant="subtitle2">Total Time:</Typography>
+              <Typography>{data.data?.totalTimeInMinutes} minutes</Typography>
+            </Grid>
+            <Grid size={{ xs: 4 }}>
+              <Typography variant="subtitle2">Servings:</Typography>
+              <Typography>{data.data?.numberOfServings}</Typography>
+            </Grid>
+          </Grid>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Ingredients */}
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Ingredients
+            </Typography>
+            <Stack spacing={1}>
+              {data.data?.ingredients.map((ingredient, index) => (
+                <Typography key={index} variant="body1">
+                  {ingredient.quantity} {ingredient.unit} {ingredient.name}
+                </Typography>
+              ))}
+            </Stack>
+          </Box>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Instructions */}
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Instructions
+            </Typography>
+            <Typography variant="body1">{data.data?.instructions}</Typography>
+          </Box>
+        </Box>
+      ) : (
+        <Typography variant="h4">Loading...</Typography>
+      )}
     </div>
   )
 }
