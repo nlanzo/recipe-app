@@ -36,7 +36,10 @@ const s3Client = new S3Client({
 
 // Configure Multer to handle file uploads
 const storage = multer.memoryStorage() // Store uploaded files in memory
-const upload = multer({ storage: storage })
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+})
 
 // Query the database for the recipe with the specified ID
 app.get("/api/recipes/:id", async (req: Request, res: Response) => {
@@ -189,7 +192,9 @@ app.post("/api/recipes", upload.array("images", 10), async (req, res) => {
         trx.rollback()
       }
 
-      res.status(201).json({ message: "Recipe added successfully!" })
+      res
+        .status(201)
+        .json({ message: "Recipe added successfully!", id: recipeId })
     })
   } catch (error) {
     console.error("Error adding recipe:", error)

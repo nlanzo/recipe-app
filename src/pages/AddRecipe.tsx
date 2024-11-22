@@ -14,6 +14,7 @@ import {
 } from "@mui/material"
 import Grid from "@mui/material/Grid2"
 import { TiDelete } from "react-icons/ti"
+import { useNavigate } from "react-router-dom"
 
 const AddRecipe: React.FC = () => {
   // State management
@@ -43,6 +44,8 @@ const AddRecipe: React.FC = () => {
     unit: "",
   })
   const [images, setImages] = useState<File[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   // Handlers
   const handleAddIngredient = () => {
@@ -72,8 +75,15 @@ const AddRecipe: React.FC = () => {
     // Convert ingredients to JSON string
     formData.append("ingredients", JSON.stringify(ingredients))
 
-    // Append images
-    images.forEach((image) => formData.append("images", image))
+    // Check file sizes and append images
+    const maxFileSize = 5 * 1024 * 1024 // 5 MB
+    for (const image of images) {
+      if (image.size > maxFileSize) {
+        setError(`File ${image.name} is too large. Maximum size is 5 MB.`)
+        return
+      }
+      formData.append("images", image)
+    }
     // categories.forEach((category) => formData.append("categories", category))
     // ingredients.forEach((ingredient, index) => {
     //   formData.append(`ingredients[${index}][name]`, ingredient.name)
@@ -89,6 +99,8 @@ const AddRecipe: React.FC = () => {
         body: formData,
       })
       if (response.ok) {
+        const data = await response.json()
+        const recipeId = data.id
         alert("Recipe added successfully!")
         // Clear form
         setTitle("")
@@ -100,6 +112,8 @@ const AddRecipe: React.FC = () => {
         setCategories([])
         setIngredients([])
         setImages([])
+        // Navigate to the newly added recipe's details page
+        navigate(`/recipes/${recipeId}`)
       } else {
         alert("Failed to add recipe.")
       }
@@ -292,6 +306,11 @@ const AddRecipe: React.FC = () => {
                 multiple
                 onChange={(e) => setImages(Array.from(e.target.files || []))}
               />
+              {error && (
+                <Typography color="error" variant="body2">
+                  {error}
+                </Typography>
+              )}
             </Grid>
 
             {/* Submit Button */}
