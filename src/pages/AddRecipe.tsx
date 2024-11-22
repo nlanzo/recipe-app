@@ -11,7 +11,6 @@ import {
   InputLabel,
   FormControl,
   Chip,
-  Input,
 } from "@mui/material"
 import Grid from "@mui/material/Grid2"
 import { TiDelete } from "react-icons/ti"
@@ -67,17 +66,25 @@ const AddRecipe: React.FC = () => {
     formData.append("activeTime", activeTime.toString())
     formData.append("totalTime", totalTime.toString())
     formData.append("servings", servings.toString())
-    categories.forEach((category) => formData.append("categories", category))
-    ingredients.forEach((ingredient, index) => {
-      formData.append(`ingredients[${index}][name]`, ingredient.name)
-      formData.append(`ingredients[${index}][quantity]`, ingredient.quantity)
-      formData.append(`ingredients[${index}][unit]`, ingredient.unit)
-    })
+    // Convert categories to JSON string
+    formData.append("categories", JSON.stringify(categories))
+
+    // Convert ingredients to JSON string
+    formData.append("ingredients", JSON.stringify(ingredients))
+
+    // Append images
     images.forEach((image) => formData.append("images", image))
+    // categories.forEach((category) => formData.append("categories", category))
+    // ingredients.forEach((ingredient, index) => {
+    //   formData.append(`ingredients[${index}][name]`, ingredient.name)
+    //   formData.append(`ingredients[${index}][quantity]`, ingredient.quantity)
+    //   formData.append(`ingredients[${index}][unit]`, ingredient.unit)
+    // })
+    // images.forEach((image) => formData.append("images", image))
 
     // Submit recipe to the server
     try {
-      const response = await fetch("/api/recipes", {
+      const response = await fetch("http://localhost:3000/api/recipes", {
         method: "POST",
         body: formData,
       })

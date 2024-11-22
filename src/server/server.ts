@@ -3,7 +3,6 @@ import express, { Request, Response } from "express"
 import cors from "cors"
 import multer from "multer"
 import {
-  ObjectCannedACL,
   PutObjectCommand,
   S3Client,
   S3ServiceException,
@@ -62,6 +61,9 @@ app.post("/api/recipes", upload.array("images", 10), async (req, res) => {
     categories,
     ingredients,
   } = req.body
+
+  console.log("Request body:", req.body) // Debugging: Log the request body
+  console.log("Request files:", req.files) // Debugging: Log the uploaded files
 
   const parsedCategories = JSON.parse(categories)
   const parsedIngredients = JSON.parse(ingredients)
@@ -140,19 +142,18 @@ app.post("/api/recipes", upload.array("images", 10), async (req, res) => {
         })
       }
 
-      if (Array.isArray(req.files)) {
+      if (Array.isArray(req.files) && req.files.length > 0) {
+        console.log(`Uploading ${req.files.length} images to S3...`)
         for (const [index, file] of req.files.entries()) {
           const s3Params = {
             Bucket: process.env.S3_BUCKET_NAME,
             Key: `recipes/${Date.now()}-${file.originalname}`, // Unique filename
             Body: file.buffer,
             ContentType: file.mimetype,
-            ACL: "public-read",
           }
 
           const uploadCommand = new PutObjectCommand({
             ...s3Params,
-            ACL: "public-read" as ObjectCannedACL,
           })
           try {
             const s3Response = await s3Client.send(uploadCommand)
@@ -167,6 +168,8 @@ app.post("/api/recipes", upload.array("images", 10), async (req, res) => {
               console.error(
                 `Error from S3 while uploading object to ${s3Params.Bucket}.  ${caught.name}: ${caught.message}`
               )
+              trx.rollback()
+              break
             } else {
               throw caught
             }
@@ -181,6 +184,9 @@ app.post("/api/recipes", upload.array("images", 10), async (req, res) => {
             isPrimary: index === 0, // Mark the first image as primary
           })
         }
+      } else {
+        console.error("No files detected to upload.")
+        trx.rollback()
       }
 
       res.status(201).json({ message: "Recipe added successfully!" })
@@ -189,9 +195,9 @@ app.post("/api/recipes", upload.array("images", 10), async (req, res) => {
     console.error("Error adding recipe:", error)
     res.status(500).json({ error: "Failed to add recipe." })
   }
+})
 
-  // Start the server
-  app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`)
-  })
+// Start the server
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`)
 })
