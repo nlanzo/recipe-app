@@ -2,10 +2,24 @@
 import express, { Request, Response } from "express"
 import cors from "cors"
 import multer from "multer"
-import AWS from "aws-sdk"
-import { Upload } from "@aws-sdk/lib-storage"
-import { PutObjectCommandInput, S3 } from "@aws-sdk/client-s3"
+import {
+  ObjectCannedACL,
+  PutObjectCommand,
+  S3Client,
+  S3ServiceException,
+} from "@aws-sdk/client-s3"
 import { getRecipeById, getRecipeCardData } from "../db/recipeQueries"
+import { db } from "../db"
+import {
+  recipesTable,
+  categoriesTable,
+  recipeCategoriesTable,
+  ingredientsTable,
+  unitsTable,
+  recipeIngredientsTable,
+  imagesTable,
+} from "../db/schema"
+import { eq } from "drizzle-orm"
 
 // Initialize Express app
 const app = express()
@@ -13,24 +27,10 @@ const port = 3000
 app.use(cors())
 app.use(express.json())
 
-// Initialize AWS S3
-// JS SDK v3 does not support global configuration.
-// Codemod has attempted to pass values to each service client in this file.
-// You may need to update clients outside of this file, if they use global config.
-AWS.config.update({
-  region: "us-east-2", // Your AWS region
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID!, // Use environment variables for security
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-})
-
-const s3 = new S3({
-  // Your AWS region
-  region: "us-east-2",
-
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION,
   credentials: {
-    // Use environment variables for security
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
 })
@@ -38,59 +38,6 @@ const s3 = new S3({
 // Configure Multer to handle file uploads
 const storage = multer.memoryStorage() // Store uploaded files in memory
 const upload = multer({ storage: storage })
-
-// Define types for the image upload
-interface FileRequest extends Request {
-  file?: Express.Multer.File
-}
-
-// Function to upload image to S3
-const uploadImageToS3 = async (file: Express.Multer.File): Promise<string> => {
-  const params: PutObjectCommandInput = {
-    Bucket: process.env.AWS_BUCKET_NAME!, // Your bucket name
-    Key: `images/${Date.now()}-${file.originalname}`, // Unique file name
-    Body: file.buffer, // The binary data of the file
-    ContentType: file.mimetype, // MIME type of the file
-    ACL: "public-read", // Make the file publicly readable
-  }
-
-  try {
-    const uploadResult = await new Upload({
-      client: s3,
-      params,
-    }).done()
-    if (!uploadResult.Location) {
-      throw new Error("Failed to get the uploaded file location")
-    }
-    return uploadResult.Location // Return the URL of the uploaded file
-  } catch (error) {
-    console.error("Error uploading image to S3:", error)
-    throw new Error("Failed to upload image to S3")
-  }
-}
-
-// POST endpoint to handle image upload
-app.post(
-  "/upload",
-  upload.single("image"),
-  async (req: FileRequest, res: Response): Promise<void> => {
-    try {
-      if (!req.file) {
-        res.status(400).send("No file uploaded.")
-        return
-      }
-
-      // Upload the image to S3
-      const imageUrl = await uploadImageToS3(req.file)
-
-      // Send back the uploaded image URL
-      res.status(200).json({ imageUrl })
-    } catch (error) {
-      res.status(500).send("Failed to upload image")
-      console.error("Failed to upload image:", error)
-    }
-  }
-)
 
 // Query the database for the recipe with the specified ID
 app.get("/api/recipes/:id", async (req: Request, res: Response) => {
@@ -104,7 +51,147 @@ app.get("/api/recipes", async (_req: Request, res: Response) => {
   res.json(recipes)
 })
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`)
+app.post("/api/recipes", upload.array("images", 10), async (req, res) => {
+  const {
+    title,
+    description,
+    instructions,
+    activeTime,
+    totalTime,
+    servings,
+    categories,
+    ingredients,
+  } = req.body
+
+  const parsedCategories = JSON.parse(categories)
+  const parsedIngredients = JSON.parse(ingredients)
+
+  try {
+    await db.transaction(async (trx) => {
+      // Step 1: Add Recipe
+      const recipe = await trx
+        .insert(recipesTable)
+        .values({
+          title,
+          description,
+          instructions,
+          activeTimeInMinutes: Number(activeTime),
+          totalTimeInMinutes: Number(totalTime),
+          numberOfServings: Number(servings),
+          userId: 1, // Replace with actual user ID
+        })
+        .returning()
+
+      const recipeId = recipe[0].id
+
+      // Step 2: Add Categories
+      for (const category of parsedCategories) {
+        let categoryRecord = await trx
+          .select()
+          .from(categoriesTable)
+          .where(eq(categoriesTable.name, category))
+          .limit(1)
+
+        if (!categoryRecord.length) {
+          categoryRecord = await trx
+            .insert(categoriesTable)
+            .values({ name: category })
+            .returning()
+        }
+
+        await trx.insert(recipeCategoriesTable).values({
+          recipeId,
+          categoryId: categoryRecord[0].id,
+        })
+      }
+
+      // Step 3: Add Ingredients
+      for (const ingredient of parsedIngredients) {
+        let ingredientRecord = await trx
+          .select()
+          .from(ingredientsTable)
+          .where(eq(ingredientsTable.name, ingredient.name))
+          .limit(1)
+
+        if (!ingredientRecord.length) {
+          ingredientRecord = await trx
+            .insert(ingredientsTable)
+            .values({ name: ingredient.name })
+            .returning()
+        }
+
+        const unitRecord = await trx
+          .select()
+          .from(unitsTable)
+          .where(eq(unitsTable.name, ingredient.unit))
+          .limit(1)
+
+        if (!unitRecord.length) {
+          return res
+            .status(400)
+            .json({ error: `Invalid unit: ${ingredient.unit}` })
+        }
+
+        await trx.insert(recipeIngredientsTable).values({
+          recipeId,
+          ingredientId: ingredientRecord[0].id,
+          unitId: unitRecord[0].id,
+          quantity: ingredient.quantity,
+        })
+      }
+
+      if (Array.isArray(req.files)) {
+        for (const [index, file] of req.files.entries()) {
+          const s3Params = {
+            Bucket: process.env.S3_BUCKET_NAME,
+            Key: `recipes/${Date.now()}-${file.originalname}`, // Unique filename
+            Body: file.buffer,
+            ContentType: file.mimetype,
+            ACL: "public-read",
+          }
+
+          const uploadCommand = new PutObjectCommand({
+            ...s3Params,
+            ACL: "public-read" as ObjectCannedACL,
+          })
+          try {
+            const s3Response = await s3Client.send(uploadCommand)
+            console.log("S3 Response:", s3Response)
+          } catch (caught) {
+            if (
+              caught instanceof S3ServiceException &&
+              caught.name === "EntityTooLarge"
+            ) {
+              console.error("Image is too large:", caught)
+            } else if (caught instanceof S3ServiceException) {
+              console.error(
+                `Error from S3 while uploading object to ${s3Params.Bucket}.  ${caught.name}: ${caught.message}`
+              )
+            } else {
+              throw caught
+            }
+          }
+
+          const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Params.Key}`
+
+          await trx.insert(imagesTable).values({
+            recipeId,
+            imageUrl, // The S3 URL
+            altText: `Image of ${title}`,
+            isPrimary: index === 0, // Mark the first image as primary
+          })
+        }
+      }
+
+      res.status(201).json({ message: "Recipe added successfully!" })
+    })
+  } catch (error) {
+    console.error("Error adding recipe:", error)
+    res.status(500).json({ error: "Failed to add recipe." })
+  }
+
+  // Start the server
+  app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`)
+  })
 })

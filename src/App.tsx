@@ -7,6 +7,7 @@ import About from "./pages/About" // Your About Us page component
 import RecipeDetails from "./pages/RecipeDetails" // Example details page
 import { createTheme, ThemeProvider } from "@mui/material"
 import { themeOptions } from "./theme"
+import AddRecipe from "./pages/AddRecipe"
 const theme = createTheme(themeOptions)
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />
             <Route path="recipes" element={<Recipes />} />
+            <Route path="add" element={<AddRecipe />} />"
             <Route path="recipes/:id" element={<RecipeDetails />} />
             <Route path="about" element={<About />} />
             {/* <Route path="login" element={<Login />} /> */}

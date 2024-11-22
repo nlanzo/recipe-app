@@ -14,7 +14,6 @@ import MenuItem from "@mui/material/MenuItem"
 import AdbIcon from "@mui/icons-material/Adb"
 import { Link } from "react-router-dom"
 
-const pages = ["Products", "Pricing", "Blog"]
 const settings = ["Profile", "Account", "Dashboard", "Logout"]
 
 export default function Navbar() {
@@ -130,15 +129,39 @@ export default function Navbar() {
           <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
             <Button
               onClick={handleCloseNavMenu}
-              sx={{ my: 2, color: "white", display: "block" }}
+              sx={{
+                my: 2,
+                color: "white",
+                display: "block",
+                ":hover": { color: "black" },
+              }}
               component={Link}
               to="/recipes"
             >
-              Recipes
+              Explore Recipes
             </Button>
             <Button
               onClick={handleCloseNavMenu}
-              sx={{ my: 2, color: "white", display: "block" }}
+              sx={{
+                my: 2,
+                color: "white",
+                display: "block",
+                ":hover": { color: "black" },
+              }}
+              component={Link}
+              to="/add"
+            >
+              Add Recipe
+            </Button>
+
+            <Button
+              onClick={handleCloseNavMenu}
+              sx={{
+                my: 2,
+                color: "white",
+                display: "block",
+                ":hover": { color: "" },
+              }}
               component={Link}
               to="/about"
             >
