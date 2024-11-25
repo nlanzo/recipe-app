@@ -10,6 +10,7 @@ import {
 import Grid from "@mui/material/Grid2"
 import { useParams } from "react-router-dom"
 import { useDataLoader } from "../components/useDataLoader"
+import DeleteRecipeButton from "../components/DeleteRecipeButton"
 
 interface RecipeDetails {
   name: string
@@ -161,6 +162,8 @@ export default function RecipeDetails() {
             </Typography>
             <Typography variant="body1">{data.data?.instructions}</Typography>
           </Box>
+          <hr />
+          <DeleteRecipeButton id={id!} />
         </Box>
       ) : (
         <Typography variant="h4">Loading...</Typography>

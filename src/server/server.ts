@@ -3,6 +3,7 @@ import express, { Request, Response } from "express"
 import cors from "cors"
 import multer from "multer"
 import {
+  DeleteObjectsCommand,
   PutObjectCommand,
   S3Client,
   S3ServiceException,
@@ -199,6 +200,77 @@ app.post("/api/recipes", upload.array("images", 10), async (req, res) => {
   } catch (error) {
     console.error("Error adding recipe:", error)
     res.status(500).json({ error: "Failed to add recipe." })
+  }
+})
+
+app.delete("/api/recipes/:id", async (req, res) => {
+  const recipeId = parseInt(req.params.id, 10)
+  console.log("Deleting recipe with ID:", recipeId)
+
+  if (isNaN(recipeId)) {
+    return res.status(400).json({ error: "Invalid recipe ID" })
+  }
+
+  try {
+    await db.transaction(async (trx) => {
+      // Step 1: Fetch all image URLs for the recipe
+      const images = await trx
+        .select()
+        .from(imagesTable)
+        .where(eq(imagesTable.recipeId, recipeId))
+
+      // Step 2: Delete images from AWS S3
+      if (images.length > 0) {
+        const objectsToDelete = images.map((image) => ({
+          Key: image.imageUrl,
+        }))
+        const deleteCommand = new DeleteObjectsCommand({
+          Bucket: process.env.S3_BUCKET_NAME,
+          Delete: { Objects: objectsToDelete },
+        })
+
+        try {
+          await s3Client.send(deleteCommand)
+          console.log("Images deleted from S3 successfully.")
+        } catch (s3Error) {
+          trx.rollback()
+          console.error("Error deleting images from S3:", s3Error)
+          throw new Error("Failed to delete images from S3.")
+        }
+      }
+
+      // Step 3: Delete from `imagesTable`
+      await trx.delete(imagesTable).where(eq(imagesTable.recipeId, recipeId))
+
+      // Step 4: Delete from `recipeIngredientsTable`
+      await trx
+        .delete(recipeIngredientsTable)
+        .where(eq(recipeIngredientsTable.recipeId, recipeId))
+
+      // Step 5: Delete from `recipeCategoriesTable`
+      await trx
+        .delete(recipeCategoriesTable)
+        .where(eq(recipeCategoriesTable.recipeId, recipeId))
+
+      // Step 6: Delete from `recipesTable`
+      const deletedRecipe = await trx
+        .delete(recipesTable)
+        .where(eq(recipesTable.id, recipeId))
+        .returning()
+
+      if (deletedRecipe.length === 0) {
+        throw new Error("Recipe not found or already deleted.")
+      }
+    })
+
+    res
+      .status(200)
+      .json({ message: "Recipe and associated data deleted successfully." })
+  } catch (error) {
+    console.error("Error deleting recipe:", error)
+    res
+      .status(500)
+      .json({ error: "Failed to delete recipe. Please try again." })
   }
 })
 
