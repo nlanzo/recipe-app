@@ -84,13 +84,6 @@ const AddRecipe: React.FC = () => {
       }
       formData.append("images", image)
     }
-    // categories.forEach((category) => formData.append("categories", category))
-    // ingredients.forEach((ingredient, index) => {
-    //   formData.append(`ingredients[${index}][name]`, ingredient.name)
-    //   formData.append(`ingredients[${index}][quantity]`, ingredient.quantity)
-    //   formData.append(`ingredients[${index}][unit]`, ingredient.unit)
-    // })
-    // images.forEach((image) => formData.append("images", image))
 
     // Submit recipe to the server
     try {
