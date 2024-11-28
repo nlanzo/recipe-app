@@ -1,24 +1,25 @@
 import { useEffect, useState } from "react"
 import {
+  Box,
+  Typography,
   TextField,
   Button,
-  Typography,
-  Box,
-  Paper,
-  InputLabel,
+  Card,
+  CardContent,
   MenuItem,
   Select,
+  InputLabel,
   FormControl,
   Chip,
 } from "@mui/material"
 import Grid from "@mui/material/Grid2"
+import { TiDelete } from "react-icons/ti"
 import { useNavigate, useParams } from "react-router-dom"
 import { useDataLoader } from "../components/useDataLoader"
 
 interface RecipeDetails {
   name: string
   author: string | null
-  images: { imageUrl: string; altText: string | null }[]
   description: string | null
   activeTimeInMinutes: number
   totalTimeInMinutes: number
@@ -31,246 +32,301 @@ interface RecipeDetails {
   instructions: string | null
 }
 
-export default function EditRecipe() {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-
+export default function AddRecipe() {
+  // State management
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [instructions, setInstructions] = useState("")
-  const [activeTime, setActiveTime] = useState<number>(0)
-  const [totalTime, setTotalTime] = useState<number>(0)
-  const [servings, setServings] = useState<number>(0)
+  const [activeTime, setActiveTime] = useState<number | "">("")
+  const [totalTime, setTotalTime] = useState<number | "">("")
+  const [servings, setServings] = useState<number | "">("")
   const [categories, setCategories] = useState<string[]>([])
+  const categoryOptions = [
+    "Breakfast",
+    "Lunch",
+    "Dinner",
+    "Dessert",
+    "Snacks",
+    "Beverage",
+    "Side Dish",
+    "Main Course",
+  ]
   const [ingredients, setIngredients] = useState<RecipeDetails["ingredients"]>(
     []
   )
-  const [newCategory, setNewCategory] = useState<string>("")
+  const [newIngredient, setNewIngredient] = useState({
+    name: "",
+    quantity: "",
+    unit: "",
+  })
+  const navigate = useNavigate()
+
+  const { id } = useParams<{ id: string }>()
 
   const data = useDataLoader<RecipeDetails>(
     `http://localhost:3000/api/recipes/${id}`
   )
+
   // Pre-populate the form fields with the recipe data
-  setTitle(data.data.title)
-  setDescription(data.data.description)
-  setInstructions(data.data.instructions)
-  setActiveTime(data.data.activeTime)
-  setTotalTime(data.data.totalTime)
-  setServings(data.data.servings)
-  setCategories(data.data.categories)
-  setIngredients(data.data.ingredients)
-
-  const handleAddCategory = () => {
-    if (newCategory && !categories.includes(newCategory)) {
-      setCategories([...categories, newCategory])
-      setNewCategory("")
+  useEffect(() => {
+    if (!data.isLoading && data.data) {
+      setTitle(data.data.name)
+      setDescription(data.data.description || "")
+      setInstructions(data.data.instructions || "")
+      setActiveTime(data.data.activeTimeInMinutes)
+      setTotalTime(data.data.totalTimeInMinutes)
+      setServings(data.data.numberOfServings)
+      setIngredients(data.data.ingredients)
     }
-  }
+  }, [data.isLoading, data.data])
 
-  const handleRemoveCategory = (categoryToRemove: string) => {
-    setCategories(
-      categories.filter((category) => category !== categoryToRemove)
-    )
-  }
-
-  const handleUpdateIngredient = (
-    index: number,
-    key: keyof RecipeDetails["ingredients"][number],
-    value: string
-  ) => {
-    const updatedIngredients = [...ingredients]
-    updatedIngredients[index][key] = value
-    setIngredients(updatedIngredients)
-  }
-
+  // Handlers
   const handleAddIngredient = () => {
-    setIngredients([...ingredients, { name: "", unit: "", quantity: "0" }])
-  }
-
-  const handleRemoveIngredient = (index: number) => {
-    setIngredients(ingredients.filter((_, i) => i !== index))
-  }
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault()
-
-    if (!data) return
-
-    try {
-      const response = await fetch(`http://localhost:3000/api/recipes/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to update recipe")
-      }
-
-      alert("Recipe updated successfully!")
-    } catch (err) {
-      alert(`Error: ${(err as Error).message}`)
+    if (newIngredient.name && newIngredient.quantity && newIngredient.unit) {
+      setIngredients((prev) => [...prev, newIngredient])
+      setNewIngredient({ name: "", quantity: "", unit: "" })
     }
   }
 
-  if (!data) {
-    return <Typography>Loading...</Typography>
+  const handleDeleteIngredient = (index: number) => {
+    setIngredients((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSubmit = async () => {
+    const formData = new FormData()
+    // TODO: Add user authentication and get user ID
+    formData.append("title", title)
+    formData.append("description", description)
+    formData.append("instructions", instructions)
+    formData.append("activeTime", activeTime.toString())
+    formData.append("totalTime", totalTime.toString())
+    formData.append("servings", servings.toString())
+    // Convert categories to JSON string
+    formData.append("categories", JSON.stringify(categories))
+    // Convert ingredients to JSON string
+    formData.append("ingredients", JSON.stringify(ingredients))
+
+    // Submit recipe to the server
+    try {
+      const response = await fetch("http://localhost:3000/api/recipes", {
+        method: "PUT",
+        body: formData,
+      })
+      if (response.ok) {
+        const data = await response.json()
+        const recipeId = data.id
+        alert("Recipe edited successfully!")
+        // Navigate to the newly added recipe's details page
+        navigate(`/recipes/${recipeId}`)
+      } else {
+        alert("Failed to add recipe.")
+      }
+    } catch (error) {
+      console.error("Error editing recipe:", error)
+      alert("Error editing recipe.")
+    }
   }
 
   return (
-    <Box p={3}>
-      <Paper elevation={3} sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          Edit Recipe
-        </Typography>
-        <form onSubmit={handleSubmit}>
-          <Grid container spacing={2}>
-            {/* Title */}
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                label="Title"
-                fullWidth
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </Grid>
+    <div>
+      {!data.isLoading ? (
+        <Box sx={{ padding: 4, maxWidth: "800px", margin: "0 auto" }}>
+          {data.error ? (
+            <Typography color="error">{data.error}</Typography>
+          ) : null}
+          <Typography variant="h4" gutterBottom>
+            Add a New Recipe
+          </Typography>
 
-            {/* Description */}
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                label="Description"
-                fullWidth
-                multiline
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </Grid>
-
-            {/* Instructions */}
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                label="Instructions"
-                fullWidth
-                multiline
-                rows={5}
-                value={instructions}
-                onChange={(e) => setInstructions(e.target.value)}
-              />
-            </Grid>
-
-            {/* Active Time */}
-            <Grid size={{ xs: 6 }}>
-              <TextField
-                label="Active Time (minutes)"
-                type="number"
-                fullWidth
-                value={activeTime}
-                onChange={(e) => setActiveTime(Number(e.target.value))}
-              />
-            </Grid>
-
-            {/* Total Time */}
-            <Grid size={{ xs: 6 }}>
-              <TextField
-                label="Total Time (minutes)"
-                type="number"
-                fullWidth
-                value={totalTime}
-                onChange={(e) => setTotalTime(Number(e.target.value))}
-              />
-            </Grid>
-
-            {/* Servings */}
-            <Grid size={{ xs: 6 }}>
-              <TextField
-                label="Servings"
-                type="number"
-                fullWidth
-                value={servings}
-                onChange={(e) => setServings(Number(e.target.value))}
-              />
-            </Grid>
-
-            {/* Categories */}
-            <Grid size={{ xs: 12 }}>
-              <FormControl fullWidth>
-                <InputLabel>Categories</InputLabel>
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 2 }}>
-                  {categories.map((category) => (
-                    <Chip
-                      key={category}
-                      label={category}
-                      onDelete={() => handleRemoveCategory(category)}
-                    />
-                  ))}
-                </Box>
-              </FormControl>
-              <Box mt={2} display="flex" gap={2}>
-                <TextField
-                  label="New Category"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                />
-                <Button variant="contained" onClick={handleAddCategory}>
-                  Add Category
-                </Button>
-              </Box>
-            </Grid>
-
-            {/* Ingredients */}
-            <Grid size={{ xs: 12 }}>
-              <Typography variant="h6">Ingredients</Typography>
-              {ingredients.map((ingredient, index) => (
-                <Box key={index} display="flex" gap={2} mb={2}>
+          <Card>
+            <CardContent>
+              <Grid container spacing={3}>
+                {/* Recipe Details */}
+                <Grid size={{ xs: 12 }}>
                   <TextField
-                    label="Name"
-                    value={ingredient.name}
-                    onChange={(e) =>
-                      handleUpdateIngredient(index, "name", e.target.value)
-                    }
+                    label="Title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    fullWidth
                   />
+                </Grid>
+                <Grid size={{ xs: 12 }}>
                   <TextField
-                    label="Quantity"
+                    label="Description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    fullWidth
+                    multiline
+                    rows={3}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <TextField
+                    label="Instructions"
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    fullWidth
+                    multiline
+                    rows={4}
+                  />
+                </Grid>
+                <Grid size={{ xs: 4 }}>
+                  <TextField
+                    label="Active Time (minutes)"
                     type="number"
-                    value={ingredient.quantity}
+                    value={activeTime}
                     onChange={(e) =>
-                      handleUpdateIngredient(index, "quantity", e.target.value)
+                      setActiveTime(Number(e.target.value) || "")
                     }
+                    fullWidth
                   />
+                </Grid>
+                <Grid size={{ xs: 4 }}>
                   <TextField
-                    label="Unit"
-                    value={ingredient.unit}
-                    onChange={(e) =>
-                      handleUpdateIngredient(index, "unit", e.target.value)
-                    }
+                    label="Total Time (minutes)"
+                    type="number"
+                    value={totalTime}
+                    onChange={(e) => setTotalTime(Number(e.target.value) || "")}
+                    fullWidth
                   />
-                  <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={() => handleRemoveIngredient(index)}
-                  >
-                    Remove
-                  </Button>
-                </Box>
-              ))}
-              <Button variant="contained" onClick={handleAddIngredient}>
-                Add Ingredient
-              </Button>
-            </Grid>
+                </Grid>
+                <Grid size={{ xs: 4 }}>
+                  <TextField
+                    label="Servings"
+                    type="number"
+                    value={servings}
+                    onChange={(e) => setServings(Number(e.target.value) || "")}
+                    fullWidth
+                  />
+                </Grid>
 
-            {/* Submit Button */}
-            <Grid size={{ xs: 12 }}>
-              <Button type="submit" variant="contained" color="primary">
-                Save Changes
-              </Button>
-            </Grid>
-          </Grid>
-        </form>
-      </Paper>
-    </Box>
+                {/* Categories */}
+                <Grid size={{ xs: 12 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Categories</InputLabel>
+                    <Select
+                      multiple
+                      value={categories}
+                      onChange={(e) =>
+                        setCategories(
+                          typeof e.target.value === "string"
+                            ? e.target.value.split(",")
+                            : e.target.value
+                        )
+                      }
+                      renderValue={(selected) => (
+                        <Box sx={{ display: "flex", gap: 0.5 }}>
+                          {selected.map((value) => (
+                            <Chip key={value} label={value} />
+                          ))}
+                        </Box>
+                      )}
+                    >
+                      {categoryOptions.map((option) => (
+                        <MenuItem key={option} value={option}>
+                          {option}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Ingredients */}
+                <Grid size={{ xs: 12 }}>
+                  <Typography variant="h6">Ingredients</Typography>
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 4 }}>
+                      <TextField
+                        label="Name"
+                        value={newIngredient.name}
+                        onChange={(e) =>
+                          setNewIngredient((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
+                        fullWidth
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 4 }}>
+                      <TextField
+                        label="Quantity"
+                        type="number"
+                        value={newIngredient.quantity}
+                        onChange={(e) =>
+                          setNewIngredient((prev) => ({
+                            ...prev,
+                            quantity: e.target.value,
+                          }))
+                        }
+                        fullWidth
+                      />
+                    </Grid>
+                    <Grid size={{ xs: 4 }}>
+                      <FormControl fullWidth>
+                        <InputLabel>Unit</InputLabel>
+                        <Select
+                          label="Unit"
+                          value={newIngredient.unit}
+                          onChange={(e) =>
+                            setNewIngredient((prev) => ({
+                              ...prev,
+                              unit: e.target.value,
+                            }))
+                          }
+                        >
+                          <MenuItem value="cups">cups</MenuItem>
+                          <MenuItem value="tablespoons">Tbsp</MenuItem>
+                          <MenuItem value="teaspoons">tsp</MenuItem>
+                          <MenuItem value="ounces">oz</MenuItem>
+                          <MenuItem value="pounds">lb</MenuItem>
+                          <MenuItem value="grams">g</MenuItem>
+                          <MenuItem value="kilograms">kg</MenuItem>
+                          <MenuItem value="milliliters">mL</MenuItem>
+                          <MenuItem value="liters">L</MenuItem>
+                          <MenuItem value="pieces">pieces</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid size={{ xs: 12 }}>
+                      <Button variant="outlined" onClick={handleAddIngredient}>
+                        Add Ingredient
+                      </Button>
+                    </Grid>
+                  </Grid>
+                  <Box mt={2}>
+                    {ingredients.map((ingredient, index) => (
+                      <Typography key={index}>
+                        {ingredient.quantity} {ingredient.unit}{" "}
+                        {ingredient.name}
+                        <Button>
+                          <TiDelete
+                            size="1rem"
+                            onClick={() => handleDeleteIngredient(index)}
+                            color="red"
+                          />
+                        </Button>
+                      </Typography>
+                    ))}
+                  </Box>
+                </Grid>
+                {/* Submit Button */}
+                <Grid size={{ xs: 12 }}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleSubmit}
+                  >
+                    Submit Recipe
+                  </Button>
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+        </Box>
+      ) : (
+        <Typography variant="h4">Loading...</Typography>
+      )}
+    </div>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import { useState } from "react"
 import {
   Box,
   Typography,
@@ -16,7 +16,7 @@ import Grid from "@mui/material/Grid2"
 import { TiDelete } from "react-icons/ti"
 import { useNavigate } from "react-router-dom"
 
-const AddRecipe: React.FC = () => {
+export default function AddRecipe() {
   // State management
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -233,6 +233,7 @@ const AddRecipe: React.FC = () => {
                 <Grid size={{ xs: 4 }}>
                   <TextField
                     label="Quantity"
+                    type="number"
                     value={newIngredient.quantity}
                     onChange={(e) =>
                       setNewIngredient((prev) => ({
@@ -322,5 +323,3 @@ const AddRecipe: React.FC = () => {
     </Box>
   )
 }
-
-export default AddRecipe
