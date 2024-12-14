@@ -15,6 +15,7 @@ import DeleteRecipeButton from "../components/DeleteRecipeButton"
 interface RecipeDetails {
   name: string
   author: string | null
+  categories: string[]
   images: { imageUrl: string; altText: string | null }[]
   description: string | null
   activeTimeInMinutes: number

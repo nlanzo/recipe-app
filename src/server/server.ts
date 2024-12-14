@@ -3,7 +3,7 @@ import express, { Request, Response } from "express"
 import cors from "cors"
 import multer from "multer"
 import {
-  DeleteObjectsCommand,
+  DeleteObjectCommand,
   PutObjectCommand,
   S3Client,
   S3ServiceException,
@@ -202,6 +202,191 @@ app.post("/api/recipes", upload.array("images", 10), async (req, res) => {
     res.status(500).json({ error: "Failed to add recipe." })
   }
 })
+
+app.put(
+  "/api/recipes/:id",
+  upload.array("newImages", 10),
+  async (req: Request, res: Response) => {
+    const recipeId = parseInt(req.params.id, 10)
+
+    if (isNaN(recipeId)) {
+      return res.status(400).json({ error: "Invalid recipe ID" })
+    }
+
+    const {
+      title,
+      description,
+      instructions,
+      activeTimeInMinutes,
+      totalTimeInMinutes,
+      numberOfServings,
+      categories,
+      ingredients,
+      imagesToDelete, // Array of image URLs to delete from S3 (optional)
+    } = req.body
+
+    try {
+      await db.transaction(async (trx) => {
+        // Step 1: Update the recipe details
+        await trx
+          .update(recipesTable)
+          .set({
+            title,
+            description,
+            instructions,
+            activeTimeInMinutes: Number(activeTimeInMinutes),
+            totalTimeInMinutes: Number(totalTimeInMinutes),
+            numberOfServings: Number(numberOfServings),
+          })
+          .where(eq(recipesTable.id, recipeId))
+
+        // Step 2: Update Categories
+        if (Array.isArray(categories)) {
+          // Remove existing category links for the recipe
+          await trx
+            .delete(recipeCategoriesTable)
+            .where(eq(recipeCategoriesTable.recipeId, recipeId))
+
+          // Add the new categories
+          for (const categoryName of categories) {
+            let categoryRecord = await trx
+              .select()
+              .from(categoriesTable)
+              .where(eq(categoriesTable.name, categoryName))
+              .limit(1)
+
+            if (!categoryRecord.length) {
+              categoryRecord = await trx
+                .insert(categoriesTable)
+                .values({ name: categoryName })
+                .returning()
+            }
+
+            await trx.insert(recipeCategoriesTable).values({
+              recipeId,
+              categoryId: categoryRecord[0].id,
+            })
+          }
+        }
+
+        // Step 3: Update Ingredients
+        if (Array.isArray(ingredients)) {
+          // Remove existing ingredient links for the recipe
+          await trx
+            .delete(recipeIngredientsTable)
+            .where(eq(recipeIngredientsTable.recipeId, recipeId))
+
+          // Add the new ingredients
+          for (const ingredient of ingredients) {
+            let ingredientRecord = await trx
+              .select()
+              .from(ingredientsTable)
+              .where(eq(ingredientsTable.name, ingredient.name))
+              .limit(1)
+
+            if (!ingredientRecord.length) {
+              ingredientRecord = await trx
+                .insert(ingredientsTable)
+                .values({ name: ingredient.name })
+                .returning()
+            }
+
+            const unitRecord = await trx
+              .select()
+              .from(unitsTable)
+              .where(eq(unitsTable.name, ingredient.unit))
+              .limit(1)
+
+            if (!unitRecord.length) {
+              return res
+                .status(400)
+                .json({ error: `Invalid unit: ${ingredient.unit}` })
+            }
+
+            await trx.insert(recipeIngredientsTable).values({
+              recipeId,
+              ingredientId: ingredientRecord[0].id,
+              unitId: unitRecord[0].id,
+              quantity: ingredient.quantity,
+            })
+          }
+        }
+
+        // Step 4: Delete Old Images from S3 (if requested)
+        if (Array.isArray(imagesToDelete) && imagesToDelete.length > 0) {
+          for (const imageUrl of imagesToDelete) {
+            const key = imageUrl.split("/").slice(-1)[0] // Extract the key from the URL
+            const deleteCommand = new DeleteObjectCommand({
+              Bucket: process.env.S3_BUCKET_NAME,
+              Key: key,
+            })
+
+            try {
+              await s3Client.send(deleteCommand)
+            } catch (s3Error) {
+              console.error(`Error deleting image ${key} from S3:`, s3Error)
+            }
+
+            // Remove image record from the database
+            await trx
+              .delete(imagesTable)
+              .where(eq(imagesTable.imageUrl, imageUrl))
+          }
+        }
+
+        // Step 5: Upload New Images to S3 (if provided)
+        if (Array.isArray(req.files) && req.files.length > 0) {
+          console.log(`Uploading ${req.files.length} images to S3...`)
+          for (const [index, file] of req.files.entries()) {
+            const s3Params = {
+              Bucket: process.env.S3_BUCKET_NAME,
+              Key: `recipes/${Date.now()}-${file.originalname}`, // Unique filename
+              Body: file.buffer,
+              ContentType: file.mimetype,
+            }
+
+            const uploadCommand = new PutObjectCommand({
+              ...s3Params,
+            })
+            try {
+              const s3Response = await s3Client.send(uploadCommand)
+              console.log("S3 Response:", s3Response)
+            } catch (caught) {
+              if (
+                caught instanceof S3ServiceException &&
+                caught.name === "EntityTooLarge"
+              ) {
+                console.error("Image is too large:", caught)
+              } else if (caught instanceof S3ServiceException) {
+                console.error(
+                  `Error from S3 while uploading object to ${s3Params.Bucket}.  ${caught.name}: ${caught.message}`
+                )
+                trx.rollback()
+                break
+              } else {
+                throw caught
+              }
+            }
+
+            const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Params.Key}`
+
+            await trx.insert(imagesTable).values({
+              recipeId,
+              imageUrl, // The S3 URL
+              altText: `Image of ${title}`,
+              isPrimary: index === 0, // Mark the first image as primary
+            })
+          }
+
+          res.status(200).json({ message: "Recipe updated successfully!" })
+        }
+      })
+    } catch (error) {
+      console.error("Error updating recipe:", error)
+      res.status(500).json({ error: "Failed to update recipe." })
+    }
+  }
+)
 
 app.delete("/api/recipes/:id", async (req, res) => {
   const recipeId = parseInt(req.params.id, 10)

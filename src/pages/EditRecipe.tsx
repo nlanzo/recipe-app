@@ -11,6 +11,7 @@ import {
   InputLabel,
   FormControl,
   Chip,
+  Paper,
 } from "@mui/material"
 import Grid from "@mui/material/Grid2"
 import { TiDelete } from "react-icons/ti"
@@ -20,7 +21,9 @@ import { useDataLoader } from "../components/useDataLoader"
 interface RecipeDetails {
   name: string
   author: string | null
+  categories: string[]
   description: string | null
+  images: { imageUrl: string; altText: string | null }[]
   activeTimeInMinutes: number
   totalTimeInMinutes: number
   numberOfServings: number
@@ -59,6 +62,13 @@ export default function AddRecipe() {
     quantity: "",
     unit: "",
   })
+  const [images, setImages] = useState<
+    { imageUrl: string; altText: string | null }[]
+  >([])
+  const [newImages, setNewImages] = useState<File[]>([])
+  const [removedImages, setRemovedImages] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
+
   const navigate = useNavigate()
 
   const { id } = useParams<{ id: string }>()
@@ -77,6 +87,7 @@ export default function AddRecipe() {
       setTotalTime(data.data.totalTimeInMinutes)
       setServings(data.data.numberOfServings)
       setIngredients(data.data.ingredients)
+      setImages(data.data.images)
     }
   }, [data.isLoading, data.data])
 
@@ -92,6 +103,22 @@ export default function AddRecipe() {
     setIngredients((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const handleAddImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setNewImages([...newImages, ...Array.from(e.target.files)])
+    }
+  }
+
+  const handleRemoveImage = (index: number, isNew: boolean) => {
+    if (isNew) {
+      setNewImages(newImages.filter((_, i) => i !== index))
+    } else {
+      const removedImageUrl = images[index].imageUrl
+      setRemovedImages([...removedImages, removedImageUrl])
+      setImages(images.filter((_, i) => i !== index))
+    }
+  }
+
   const handleSubmit = async () => {
     const formData = new FormData()
     // TODO: Add user authentication and get user ID
@@ -105,6 +132,14 @@ export default function AddRecipe() {
     formData.append("categories", JSON.stringify(categories))
     // Convert ingredients to JSON string
     formData.append("ingredients", JSON.stringify(ingredients))
+    const maxFileSize = 5 * 1024 * 1024 // 5 MB
+    for (const image of newImages) {
+      if (image.size > maxFileSize) {
+        setError(`File ${image.name} is too large. Maximum size is 5 MB.`)
+        return
+      }
+      formData.append("images", image)
+    }
 
     // Submit recipe to the server
     try {
@@ -119,7 +154,7 @@ export default function AddRecipe() {
         // Navigate to the newly added recipe's details page
         navigate(`/recipes/${recipeId}`)
       } else {
-        alert("Failed to add recipe.")
+        alert("Failed to edit recipe.")
       }
     } catch (error) {
       console.error("Error editing recipe:", error)
@@ -310,6 +345,74 @@ export default function AddRecipe() {
                     ))}
                   </Box>
                 </Grid>
+                <Typography variant="h6" marginTop={2}>
+                  Images
+                </Typography>
+                <Grid container spacing={2}>
+                  {/* Existing Images */}
+                  {images.map((image, index) => (
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
+                      <Paper
+                        style={{
+                          padding: 10,
+                          textAlign: "center",
+                          position: "relative",
+                        }}
+                      >
+                        <img
+                          src={image.imageUrl}
+                          alt={image.altText || "Recipe Image"}
+                          style={{ maxWidth: "100%", height: "auto" }}
+                        />
+                        <Button
+                          onClick={() => handleRemoveImage(index, false)}
+                          variant="outlined"
+                          color="error"
+                        >
+                          Remove Image
+                        </Button>
+                      </Paper>
+                    </Grid>
+                  ))}
+
+                  {/* New Images */}
+                  {newImages.map((file, index) => (
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={`new-${index}`}>
+                      <Paper
+                        style={{
+                          padding: 10,
+                          textAlign: "center",
+                          position: "relative",
+                        }}
+                      >
+                        <Typography>{file.name}</Typography>
+                        <Button
+                          onClick={() => handleRemoveImage(index, true)}
+                          variant="outlined"
+                          color="error"
+                        >
+                          Remove
+                        </Button>
+                      </Paper>
+                    </Grid>
+                  ))}
+                </Grid>
+
+                <Button
+                  variant="contained"
+                  component="label"
+                  style={{ marginTop: 10 }}
+                >
+                  Add Images
+                  <input
+                    type="file"
+                    hidden
+                    multiple
+                    accept="image/*"
+                    onChange={handleAddImage}
+                  />
+                </Button>
+                {error ?? <Typography>{error}</Typography>}
                 {/* Submit Button */}
                 <Grid size={{ xs: 12 }}>
                   <Button
