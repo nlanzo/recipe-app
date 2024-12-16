@@ -4,6 +4,7 @@ import cors from "cors"
 import multer from "multer"
 import {
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   PutObjectCommand,
   S3Client,
   S3ServiceException,

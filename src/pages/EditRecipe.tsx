@@ -121,7 +121,6 @@ export default function AddRecipe() {
 
   const handleSubmit = async () => {
     const formData = new FormData()
-    // TODO: Add user authentication and get user ID
     formData.append("title", title)
     formData.append("description", description)
     formData.append("instructions", instructions)
