@@ -35,7 +35,7 @@ interface RecipeDetails {
   instructions: string | null
 }
 
-export default function AddRecipe() {
+export default function EditRecipe() {
   // State management
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -79,8 +79,8 @@ export default function AddRecipe() {
 
   // Pre-populate the form fields with the recipe data
   useEffect(() => {
-    if (!data.isLoading && data.data) {
-      setTitle(data.data.name)
+    if (data.data) {
+      setTitle(data.data.name || "")
       setDescription(data.data.description || "")
       setInstructions(data.data.instructions || "")
       setActiveTime(data.data.activeTimeInMinutes)
@@ -89,7 +89,7 @@ export default function AddRecipe() {
       setIngredients(data.data.ingredients)
       setImages(data.data.images)
     }
-  }, [data.isLoading, data.data])
+  }, [data.data])
 
   // Handlers
   const handleAddIngredient = () => {
@@ -169,7 +169,7 @@ export default function AddRecipe() {
             <Typography color="error">{data.error}</Typography>
           ) : null}
           <Typography variant="h4" gutterBottom>
-            Add a New Recipe
+            Edit Recipe
           </Typography>
 
           <Card>

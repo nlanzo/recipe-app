@@ -207,11 +207,14 @@ app.post("/api/recipes", upload.array("images", 10), async (req, res) => {
 app.put(
   "/api/recipes/:id",
   upload.array("newImages", 10),
-  async (req: Request, res: Response) => {
+  async (req: Request, res: Response): Promise<void> => {
+    console.log("Request body:", req.body) // Debugging: Log the request body
+    console.log("Request files:", req.files) // Debugging: Log the uploaded files
     const recipeId = parseInt(req.params.id, 10)
 
     if (isNaN(recipeId)) {
-      return res.status(400).json({ error: "Invalid recipe ID" })
+      res.status(400).json({ error: "Invalid recipe ID" })
+      return
     }
 
     const {
@@ -299,9 +302,10 @@ app.put(
               .limit(1)
 
             if (!unitRecord.length) {
-              return res
+              res
                 .status(400)
                 .json({ error: `Invalid unit: ${ingredient.unit}` })
+              return
             }
 
             await trx.insert(recipeIngredientsTable).values({
@@ -363,7 +367,7 @@ app.put(
                   `Error from S3 while uploading object to ${s3Params.Bucket}.  ${caught.name}: ${caught.message}`
                 )
                 trx.rollback()
-                break
+                return
               } else {
                 throw caught
               }
@@ -378,10 +382,10 @@ app.put(
               isPrimary: index === 0, // Mark the first image as primary
             })
           }
-
-          res.status(200).json({ message: "Recipe updated successfully!" })
         }
       })
+
+      res.status(200).json({ message: "Recipe updated successfully!" })
     } catch (error) {
       console.error("Error updating recipe:", error)
       res.status(500).json({ error: "Failed to update recipe." })
@@ -389,76 +393,80 @@ app.put(
   }
 )
 
-app.delete("/api/recipes/:id", async (req, res) => {
-  const recipeId = parseInt(req.params.id, 10)
-  console.log("Deleting recipe with ID:", recipeId)
+app.delete(
+  "/api/recipes/:id",
+  async (req: Request, res: Response): Promise<void> => {
+    const recipeId = parseInt(req.params.id, 10)
+    console.log("Deleting recipe with ID:", recipeId)
 
-  if (isNaN(recipeId)) {
-    return res.status(400).json({ error: "Invalid recipe ID" })
-  }
+    if (isNaN(recipeId)) {
+      res.status(400).json({ error: "Invalid recipe ID" })
+      return
+    }
 
-  try {
-    await db.transaction(async (trx) => {
-      // Step 1: Fetch all image URLs for the recipe
-      const images = await trx
-        .select()
-        .from(imagesTable)
-        .where(eq(imagesTable.recipeId, recipeId))
+    try {
+      await db.transaction(async (trx) => {
+        // Step 1: Fetch all image URLs for the recipe
+        const images = await trx
+          .select()
+          .from(imagesTable)
+          .where(eq(imagesTable.recipeId, recipeId))
 
-      // Step 2: Delete images from AWS S3
-      if (images.length > 0) {
-        const objectsToDelete = images.map((image) => ({
-          Key: image.imageUrl,
-        }))
-        const deleteCommand = new DeleteObjectsCommand({
-          Bucket: process.env.S3_BUCKET_NAME,
-          Delete: { Objects: objectsToDelete },
-        })
+        // Step 2: Delete images from AWS S3
+        if (images.length > 0) {
+          const objectsToDelete = images.map((image) => ({
+            Key: image.imageUrl,
+          }))
+          const deleteCommand = new DeleteObjectsCommand({
+            Bucket: process.env.S3_BUCKET_NAME,
+            Delete: { Objects: objectsToDelete },
+          })
 
-        try {
-          await s3Client.send(deleteCommand)
-          console.log("Images deleted from S3 successfully.")
-        } catch (s3Error) {
-          trx.rollback()
-          console.error("Error deleting images from S3:", s3Error)
-          throw new Error("Failed to delete images from S3.")
+          try {
+            await s3Client.send(deleteCommand)
+            console.log("Images deleted from S3 successfully.")
+          } catch (s3Error) {
+            trx.rollback()
+            console.error("Error deleting images from S3:", s3Error)
+            throw new Error("Failed to delete images from S3.")
+          }
         }
-      }
 
-      // Step 3: Delete from `imagesTable`
-      await trx.delete(imagesTable).where(eq(imagesTable.recipeId, recipeId))
+        // Step 3: Delete from `imagesTable`
+        await trx.delete(imagesTable).where(eq(imagesTable.recipeId, recipeId))
 
-      // Step 4: Delete from `recipeIngredientsTable`
-      await trx
-        .delete(recipeIngredientsTable)
-        .where(eq(recipeIngredientsTable.recipeId, recipeId))
+        // Step 4: Delete from `recipeIngredientsTable`
+        await trx
+          .delete(recipeIngredientsTable)
+          .where(eq(recipeIngredientsTable.recipeId, recipeId))
 
-      // Step 5: Delete from `recipeCategoriesTable`
-      await trx
-        .delete(recipeCategoriesTable)
-        .where(eq(recipeCategoriesTable.recipeId, recipeId))
+        // Step 5: Delete from `recipeCategoriesTable`
+        await trx
+          .delete(recipeCategoriesTable)
+          .where(eq(recipeCategoriesTable.recipeId, recipeId))
 
-      // Step 6: Delete from `recipesTable`
-      const deletedRecipe = await trx
-        .delete(recipesTable)
-        .where(eq(recipesTable.id, recipeId))
-        .returning()
+        // Step 6: Delete from `recipesTable`
+        const deletedRecipe = await trx
+          .delete(recipesTable)
+          .where(eq(recipesTable.id, recipeId))
+          .returning()
 
-      if (deletedRecipe.length === 0) {
-        throw new Error("Recipe not found or already deleted.")
-      }
-    })
+        if (deletedRecipe.length === 0) {
+          throw new Error("Recipe not found or already deleted.")
+        }
+      })
 
-    res
-      .status(200)
-      .json({ message: "Recipe and associated data deleted successfully." })
-  } catch (error) {
-    console.error("Error deleting recipe:", error)
-    res
-      .status(500)
-      .json({ error: "Failed to delete recipe. Please try again." })
+      res
+        .status(200)
+        .json({ message: "Recipe and associated data deleted successfully." })
+    } catch (error) {
+      console.error("Error deleting recipe:", error)
+      res
+        .status(500)
+        .json({ error: "Failed to delete recipe. Please try again." })
+    }
   }
-})
+)
 
 // Start the server
 app.listen(port, () => {
