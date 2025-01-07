@@ -160,7 +160,7 @@ export default function Navbar() {
                 my: 2,
                 color: "white",
                 display: "block",
-                ":hover": { color: "" },
+                ":hover": { color: "black" },
               }}
               component={Link}
               to="/about"
