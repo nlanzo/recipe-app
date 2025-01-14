@@ -145,16 +145,14 @@ export default function EditRecipe() {
 
     // Submit recipe to the server
     try {
-      const response = await fetch("http://localhost:3000/api/recipes/${id}", {
+      const response = await fetch(`http://localhost:3000/api/recipes/${id}`, {
         method: "PUT",
         body: formData,
       })
       if (response.ok) {
-        const data = await response.json()
-        const recipeId = data.id
         alert("Recipe edited successfully!")
         // Navigate to the newly added recipe's details page
-        navigate(`/recipes/${recipeId}`)
+        navigate(`/recipes/${id}`)
       } else {
         alert("Failed to edit recipe.")
       }
