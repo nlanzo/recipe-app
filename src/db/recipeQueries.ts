@@ -5,6 +5,8 @@ import {
   unitsTable,
   imagesTable,
   usersTable,
+  categoriesTable,
+  recipeCategoriesTable,
 } from "./schema"
 import { db } from "./index"
 import { eq, min } from "drizzle-orm"
@@ -72,9 +74,23 @@ export async function getRecipeById(id: number) {
     .where(eq(imagesTable.recipeId, id))
     .execute()
 
+  // Fetch the categories for the recipe
+  const categories = await db
+    .select({
+      name: categoriesTable.name,
+    })
+    .from(recipeCategoriesTable)
+    .leftJoin(
+      categoriesTable,
+      eq(categoriesTable.id, recipeCategoriesTable.categoryId)
+    )
+    .where(eq(recipeCategoriesTable.recipeId, id))
+    .execute()
+
   // Combine the results into a single object
   const recipeDetails = {
     ...recipe[0], // Assuming the recipe query returns an array with a single object
+    categories,
     ingredients,
     images,
   }
