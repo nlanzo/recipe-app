@@ -19,7 +19,7 @@ import { useNavigate, useParams } from "react-router-dom"
 import { useDataLoader } from "../components/useDataLoader"
 
 interface RecipeDetails {
-  name: string
+  title: string
   author: string | null
   categories: string[]
   description: string | null
@@ -80,7 +80,7 @@ export default function EditRecipe() {
   // Pre-populate the form fields with the recipe data
   useEffect(() => {
     if (data.data) {
-      setTitle(data.data.name || "")
+      setTitle(data.data.title || "")
       setDescription(data.data.description || "")
       setInstructions(data.data.instructions || "")
       setActiveTime(data.data.activeTimeInMinutes)
