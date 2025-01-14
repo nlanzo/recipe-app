@@ -88,6 +88,7 @@ export default function EditRecipe() {
       setServings(data.data.numberOfServings)
       setIngredients(data.data.ingredients)
       setImages(data.data.images)
+      setCategories(data.data.categories)
     }
   }, [data.data])
 
