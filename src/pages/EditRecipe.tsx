@@ -134,6 +134,7 @@ export default function EditRecipe() {
     formData.append("categories", JSON.stringify(categories))
     // Convert ingredients to JSON string
     formData.append("ingredients", JSON.stringify(ingredients))
+    formData.append("removedImages", JSON.stringify(removedImages))
     const maxFileSize = 5 * 1024 * 1024 // 5 MB
     for (const image of newImages) {
       if (image.size > maxFileSize) {

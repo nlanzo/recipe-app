@@ -226,7 +226,7 @@ app.put(
       numberOfServings,
       categories,
       ingredients,
-      imagesToDelete, // Array of image URLs to delete from S3 (optional)
+      removedImages, // Array of image URLs to delete from S3 (optional)
     } = req.body
 
     try {
@@ -318,8 +318,10 @@ app.put(
         }
 
         // Step 4: Delete Old Images from S3 (if requested)
+        const imagesToDelete = JSON.parse(removedImages)
         if (Array.isArray(imagesToDelete) && imagesToDelete.length > 0) {
           for (const imageUrl of imagesToDelete) {
+            console.log(imageUrl)
             const key = imageUrl.split("/").slice(-1)[0] // Extract the key from the URL
             const deleteCommand = new DeleteObjectCommand({
               Bucket: process.env.S3_BUCKET_NAME,
@@ -337,6 +339,8 @@ app.put(
               .delete(imagesTable)
               .where(eq(imagesTable.imageUrl, imageUrl))
           }
+        } else {
+          console.log("No images to delete.")
         }
 
         // Step 5: Upload New Images to S3 (if provided)
