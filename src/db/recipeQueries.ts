@@ -87,10 +87,12 @@ export async function getRecipeById(id: number) {
     .where(eq(recipeCategoriesTable.recipeId, id))
     .execute()
 
+  const categoriesList = categories.map((category) => category.name)
+
   // Combine the results into a single object
   const recipeDetails = {
     ...recipe[0], // Assuming the recipe query returns an array with a single object
-    categories,
+    categories: categoriesList,
     ingredients,
     images,
   }
