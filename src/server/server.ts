@@ -388,7 +388,9 @@ app.put(
       res.status(200).json({ message: "Recipe updated successfully!" })
     } catch (error) {
       console.error("Error updating recipe:", error)
-      res.status(500).json({ error: "Failed to update recipe." })
+      res
+        .status(500)
+        .json({ error: "Failed to update recipe.", details: error.message })
     }
   }
 )

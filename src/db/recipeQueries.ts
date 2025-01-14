@@ -9,7 +9,7 @@ import {
   recipeCategoriesTable,
 } from "./schema"
 import { db } from "./index"
-import { eq, min } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 
 export async function getRecipeCardData() {
   const recipes = await db
@@ -22,7 +22,7 @@ export async function getRecipeCardData() {
     })
     .from(recipesTable)
     .leftJoin(imagesTable, eq(imagesTable.recipeId, recipesTable.id))
-    .where(eq(imagesTable.isPrimary, true || min(imagesTable.id))) // Fetch only the primary image
+    .where(eq(imagesTable.isPrimary, true)) // Fetch only the primary image
     .execute()
 
   return recipes

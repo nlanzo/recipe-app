@@ -40,9 +40,11 @@ export default function EditRecipe() {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [instructions, setInstructions] = useState("")
-  const [activeTime, setActiveTime] = useState<number | "">("")
-  const [totalTime, setTotalTime] = useState<number | "">("")
-  const [servings, setServings] = useState<number | "">("")
+  const [activeTimeInMinutes, setActiveTimeInMinutes] = useState<number | "">(
+    ""
+  )
+  const [totalTimeInMinutes, setTotalTimeInMinutes] = useState<number | "">("")
+  const [numberOfServings, setNumberOfServings] = useState<number | "">("")
   const [categories, setCategories] = useState<string[]>([])
   const categoryOptions = [
     "Breakfast",
@@ -83,9 +85,9 @@ export default function EditRecipe() {
       setTitle(data.data.title || "")
       setDescription(data.data.description || "")
       setInstructions(data.data.instructions || "")
-      setActiveTime(data.data.activeTimeInMinutes)
-      setTotalTime(data.data.totalTimeInMinutes)
-      setServings(data.data.numberOfServings)
+      setActiveTimeInMinutes(data.data.activeTimeInMinutes)
+      setTotalTimeInMinutes(data.data.totalTimeInMinutes)
+      setNumberOfServings(data.data.numberOfServings)
       setIngredients(data.data.ingredients)
       setImages(data.data.images)
       setCategories(data.data.categories)
@@ -125,9 +127,9 @@ export default function EditRecipe() {
     formData.append("title", title)
     formData.append("description", description)
     formData.append("instructions", instructions)
-    formData.append("activeTime", activeTime.toString())
-    formData.append("totalTime", totalTime.toString())
-    formData.append("servings", servings.toString())
+    formData.append("activeTimeInMinutes", activeTimeInMinutes.toString())
+    formData.append("totalTimeInMinutes", totalTimeInMinutes.toString())
+    formData.append("numberOfServings", numberOfServings.toString())
     // Convert categories to JSON string
     formData.append("categories", JSON.stringify(categories))
     // Convert ingredients to JSON string
@@ -138,12 +140,12 @@ export default function EditRecipe() {
         setError(`File ${image.name} is too large. Maximum size is 5 MB.`)
         return
       }
-      formData.append("images", image)
+      formData.append("newImages", image)
     }
 
     // Submit recipe to the server
     try {
-      const response = await fetch("http://localhost:3000/api/recipes", {
+      const response = await fetch("http://localhost:3000/api/recipes/${id}", {
         method: "PUT",
         body: formData,
       })
@@ -209,9 +211,9 @@ export default function EditRecipe() {
                   <TextField
                     label="Active Time (minutes)"
                     type="number"
-                    value={activeTime}
+                    value={activeTimeInMinutes}
                     onChange={(e) =>
-                      setActiveTime(Number(e.target.value) || "")
+                      setActiveTimeInMinutes(Number(e.target.value) || "")
                     }
                     fullWidth
                   />
@@ -220,8 +222,10 @@ export default function EditRecipe() {
                   <TextField
                     label="Total Time (minutes)"
                     type="number"
-                    value={totalTime}
-                    onChange={(e) => setTotalTime(Number(e.target.value) || "")}
+                    value={totalTimeInMinutes}
+                    onChange={(e) =>
+                      setTotalTimeInMinutes(Number(e.target.value) || "")
+                    }
                     fullWidth
                   />
                 </Grid>
@@ -229,8 +233,10 @@ export default function EditRecipe() {
                   <TextField
                     label="Servings"
                     type="number"
-                    value={servings}
-                    onChange={(e) => setServings(Number(e.target.value) || "")}
+                    value={numberOfServings}
+                    onChange={(e) =>
+                      setNumberOfServings(Number(e.target.value) || "")
+                    }
                     fullWidth
                   />
                 </Grid>
