@@ -41,24 +41,36 @@ export default function Navbar() {
     <AppBar position="sticky" sx={{ mb: 2, maxWidth: "xl", mx: "auto" }}>
       <Container maxWidth="lg">
         <Toolbar disableGutters>
-          <AdbIcon sx={{ display: { xs: "none", md: "flex" }, mr: 1 }} />
-          <Typography
-            variant="h6"
-            noWrap
+          <Button
             component={Link}
             to="/"
             sx={{
-              mr: 2,
               display: { xs: "none", md: "flex" },
-              fontFamily: "monospace",
-              fontWeight: 700,
-              letterSpacing: ".2rem",
-              color: "inherit",
-              textDecoration: "none",
+              color: "secondary.main",
+              ":hover": { color: "white" },
             }}
           >
-            RecipeApp
-          </Typography>
+            <AdbIcon
+              sx={{
+                display: { xs: "none", md: "flex" },
+                mr: 1,
+              }}
+            />
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{
+                mr: 2,
+                display: { xs: "none", md: "flex" },
+                fontFamily: "monospace",
+                fontWeight: 700,
+                letterSpacing: ".2rem",
+                textDecoration: "none",
+              }}
+            >
+              RecipeApp
+            </Typography>
+          </Button>
 
           <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
             <IconButton
@@ -131,9 +143,9 @@ export default function Navbar() {
               onClick={handleCloseNavMenu}
               sx={{
                 my: 2,
-                color: "white",
+                color: "secondary.main",
+                ":hover": { color: "white" },
                 display: "block",
-                ":hover": { color: "black" },
               }}
               component={Link}
               to="/recipes"
@@ -144,9 +156,9 @@ export default function Navbar() {
               onClick={handleCloseNavMenu}
               sx={{
                 my: 2,
-                color: "white",
+                color: "secondary.main",
+                ":hover": { color: "white" },
                 display: "block",
-                ":hover": { color: "black" },
               }}
               component={Link}
               to="/add"
@@ -158,9 +170,9 @@ export default function Navbar() {
               onClick={handleCloseNavMenu}
               sx={{
                 my: 2,
-                color: "white",
+                color: "secondary.main",
+                ":hover": { color: "white" },
                 display: "block",
-                ":hover": { color: "black" },
               }}
               component={Link}
               to="/about"

@@ -10,8 +10,8 @@ export default function Home() {
   }
 
   return (
-    <Box component="div">
-      <Grid container spacing={2} justifyContent="center" alignItems="stretch">
+    <Box component="div" sx={{ width: 0.8, margin: "auto" }}>
+      <Grid container justifyContent="center" alignItems="stretch">
         {/* Splash Image */}
         <img
           src="./plate-of-food.jpg"
@@ -19,7 +19,13 @@ export default function Home() {
         />
 
         {/* Website Description */}
-        <Typography variant="h1">
+        <Typography
+          variant="h1"
+          sx={{
+            textAlign: "center",
+            color: "secondary.main",
+          }}
+        >
           Cooking Made Fun and Easy: Unleash Your Inner Chef
         </Typography>
 
