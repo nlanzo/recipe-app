@@ -11,32 +11,36 @@ export default function Home() {
 
   return (
     <Box component="div" sx={{ width: 0.8, margin: "auto" }}>
-      <Grid container justifyContent="center" alignItems="stretch">
+      <Grid container>
         {/* Splash Image */}
-        <img
-          src="./plate-of-food.jpg"
-          alt="Plate of meat, potatoes, and salad"
-        />
+        <Grid size={6}>
+          <img
+            src="./plate-of-food.jpg"
+            alt="Plate of meat, potatoes, and salad"
+          />
+        </Grid>
+        <Grid size={6}>
+          {/* Website Description */}
+          <Typography
+            variant="h1"
+            sx={{
+              textAlign: "center",
+              color: "secondary.main",
+            }}
+          >
+            Cooking Made Fun and Easy: Unleash Your Inner Chef
+          </Typography>
 
-        {/* Website Description */}
-        <Typography
-          variant="h1"
-          sx={{
-            textAlign: "center",
-            color: "secondary.main",
-          }}
-        >
-          Cooking Made Fun and Easy: Unleash Your Inner Chef
-        </Typography>
-
-        {/* Button to View Recipes */}
-        <Button
-          variant="contained"
-          size="large"
-          onClick={handleViewRecipesClick}
-        >
-          Explore Recipes
-        </Button>
+          {/* Button to View Recipes */}
+          <Button
+            sx={{ margin: "auto", display: "block", marginTop: 4 }}
+            variant="contained"
+            size="large"
+            onClick={handleViewRecipesClick}
+          >
+            Explore Recipes
+          </Button>
+        </Grid>
       </Grid>
     </Box>
   )
