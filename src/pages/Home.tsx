@@ -11,15 +11,20 @@ export default function Home() {
 
   return (
     <Box component="div" sx={{ width: 0.8, margin: "auto" }}>
-      <Grid container>
+      <Grid container spacing={4}>
         {/* Splash Image */}
-        <Grid size={6}>
+        <Grid size={{ xs: 6 }}>
           <img
             src="./plate-of-food.jpg"
             alt="Plate of meat, potatoes, and salad"
+            style={{
+              maxWidth: "100%",
+              height: "auto",
+              display: "block",
+            }}
           />
         </Grid>
-        <Grid size={6}>
+        <Grid size={{ xs: 6 }}>
           {/* Website Description */}
           <Typography
             variant="h1"
