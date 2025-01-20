@@ -5,15 +5,13 @@ import Recipes from "./pages/Recipes" // Your Recipes page component
 import About from "./pages/About" // Your About Us page component
 // import Login from "./pages/Login" // Your Login page component
 import RecipeDetails from "./pages/RecipeDetails" // Example details page
-import { createTheme, ThemeProvider } from "@mui/material"
-import { themeOptions } from "./theme"
+import { ThemeProvider } from "./contexts/ThemeContext"
 import AddRecipe from "./pages/AddRecipe"
 import EditRecipe from "./pages/EditRecipe"
-const theme = createTheme(themeOptions)
 
 export default function App() {
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider>
       <BrowserRouter>
         <Routes>
           {/* Wrap pages in the Layout */}

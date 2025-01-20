@@ -13,10 +13,14 @@ import Tooltip from "@mui/material/Tooltip"
 import MenuItem from "@mui/material/MenuItem"
 import AdbIcon from "@mui/icons-material/Adb"
 import { Link } from "react-router-dom"
+import { useTheme } from "../contexts/useTheme"
+import Brightness4Icon from "@mui/icons-material/Brightness4"
+import Brightness7Icon from "@mui/icons-material/Brightness7"
 
 const settings = ["Profile", "Account", "Dashboard", "Logout"]
 
 export default function Navbar() {
+  const { isDarkMode, toggleTheme } = useTheme()
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null)
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null
@@ -36,6 +40,12 @@ export default function Navbar() {
   const handleCloseUserMenu = () => {
     setAnchorElUser(null)
   }
+
+  const themeToggle = (
+    <IconButton onClick={toggleTheme} color="inherit">
+      {isDarkMode ? <Brightness7Icon /> : <Brightness4Icon />}
+    </IconButton>
+  )
 
   return (
     <AppBar position="sticky" sx={{ mb: 2, maxWidth: "xl", mx: "auto" }}>
@@ -181,6 +191,7 @@ export default function Navbar() {
             </Button>
           </Box>
           <Box sx={{ flexGrow: 0 }}>
+            {themeToggle}
             <Tooltip title="Open settings">
               <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                 <Avatar alt="Remy Sharp" src="/static/images/avatar/2.jpg" />
