@@ -15,6 +15,7 @@ import {
 import Grid from "@mui/material/Grid2"
 import { TiDelete } from "react-icons/ti"
 import { useNavigate } from "react-router-dom"
+import { useAuth } from "../contexts/AuthContext"
 
 export default function AddRecipe() {
   // State management
@@ -46,6 +47,7 @@ export default function AddRecipe() {
   const [images, setImages] = useState<File[]>([])
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const { token } = useAuth()
 
   // Handlers
   const handleAddIngredient = () => {
@@ -89,6 +91,9 @@ export default function AddRecipe() {
     try {
       const response = await fetch("http://localhost:3000/api/recipes", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         body: formData,
       })
       if (response.ok) {
