@@ -7,7 +7,7 @@ import Login from "./pages/Login"
 import Register from "./pages/Register"
 import RecipeDetails from "./pages/RecipeDetails" // Example details page
 import { ThemeProvider } from "./contexts/ThemeContext"
-import { AuthProvider } from "./contexts/AuthContext"
+import { AuthProvider } from "./contexts/AuthProvider"
 import AddRecipe from "./pages/AddRecipe"
 import EditRecipe from "./pages/EditRecipe"
 import ProtectedRoute from "./components/ProtectedRoute"

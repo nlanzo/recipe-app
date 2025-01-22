@@ -15,7 +15,7 @@ import {
 import Grid from "@mui/material/Grid2"
 import { TiDelete } from "react-icons/ti"
 import { useNavigate } from "react-router-dom"
-import { useAuth } from "../contexts/AuthContext"
+import { useAuth } from "../contexts/useAuth"
 
 export default function AddRecipe() {
   // State management
