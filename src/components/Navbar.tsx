@@ -22,7 +22,7 @@ const settings = ["Profile", "Account", "Dashboard", "Logout"]
 
 export default function Navbar() {
   const { isDarkMode, toggleTheme } = useTheme()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, logout } = useAuth()
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null)
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null
@@ -41,6 +41,14 @@ export default function Navbar() {
 
   const handleCloseUserMenu = () => {
     setAnchorElUser(null)
+  }
+
+  const handleMenuItemClick = (setting: string) => {
+    handleCloseUserMenu()
+    if (setting === "Logout") {
+      logout()
+    }
+    // Add other cases for Profile, Account, Dashboard if needed
   }
 
   const themeToggle = (
@@ -221,7 +229,10 @@ export default function Navbar() {
                   onClose={handleCloseUserMenu}
                 >
                   {settings.map((setting) => (
-                    <MenuItem key={setting} onClick={handleCloseUserMenu}>
+                    <MenuItem
+                      key={setting}
+                      onClick={() => handleMenuItemClick(setting)}
+                    >
                       <Typography sx={{ textAlign: "center" }}>
                         {setting}
                       </Typography>
