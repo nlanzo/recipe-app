@@ -16,6 +16,7 @@ import { Link } from "react-router-dom"
 import { useTheme } from "../contexts/useTheme"
 import Brightness4Icon from "@mui/icons-material/Brightness4"
 import Brightness7Icon from "@mui/icons-material/Brightness7"
+import SettingsIcon from "@mui/icons-material/Settings"
 import { useAuth } from "../contexts/useAuth"
 
 const settings = ["Profile", "Account", "Dashboard", "Logout"]
@@ -206,10 +207,9 @@ export default function Navbar() {
               <>
                 <Tooltip title="Open settings">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar
-                      alt="Remy Sharp"
-                      src="/static/images/avatar/2.jpg"
-                    />
+                    <Avatar>
+                      <SettingsIcon />
+                    </Avatar>
                   </IconButton>
                 </Tooltip>
                 <Menu
