@@ -77,10 +77,11 @@ app.post(
     console.log("Request body:", req.body) // Debugging: Log the request body
     console.log("Request files:", req.files) // Debugging: Log the uploaded files
 
-    const parsedCategories = JSON.parse(categories)
-    const parsedIngredients = JSON.parse(ingredients)
-
     try {
+      // Parse the form data fields - make sure these are properly stringified on the client
+      const parsedCategories = categories ? JSON.parse(categories) : []
+      const parsedIngredients = ingredients ? JSON.parse(ingredients) : []
+
       await db.transaction(async (trx) => {
         // Step 1: Add Recipe
         const recipe = await trx

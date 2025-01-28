@@ -14,11 +14,13 @@ import {
 } from "@mui/material"
 import Grid from "@mui/material/Grid2"
 import { TiDelete } from "react-icons/ti"
+import { FaSpinner } from "react-icons/fa"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/useAuth"
 
 export default function AddRecipe() {
   // State management
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [instructions, setInstructions] = useState("")
@@ -62,6 +64,7 @@ export default function AddRecipe() {
   }
 
   const handleAddRecipe = async () => {
+    setIsSubmitting(true)
     const formData = new FormData()
     // TODO: Add user authentication and get user ID
     formData.append("userId", "1") // Hardcoded user ID for now
@@ -118,6 +121,8 @@ export default function AddRecipe() {
     } catch (error) {
       console.error("Error adding recipe:", error)
       alert("Error adding recipe.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -318,8 +323,15 @@ export default function AddRecipe() {
                 variant="contained"
                 color="primary"
                 onClick={handleAddRecipe}
+                disabled={isSubmitting}
               >
-                Submit Recipe
+                {isSubmitting ? (
+                  <>
+                    Adding Recipe... <FaSpinner />
+                  </>
+                ) : (
+                  "Submit Recipe"
+                )}
               </Button>
             </Grid>
           </Grid>
