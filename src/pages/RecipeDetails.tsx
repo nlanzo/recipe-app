@@ -33,9 +33,7 @@ interface RecipeDetails {
 export default function RecipeDetails() {
   const { id } = useParams()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const data = useDataLoader<RecipeDetails>(
-    `http://localhost:3000/api/recipes/${id}`
-  )
+  const data = useDataLoader<RecipeDetails>(`/api/recipes/${id}`)
 
   const handleNextImage = () => {
     setCurrentImageIndex((prevIndex) =>

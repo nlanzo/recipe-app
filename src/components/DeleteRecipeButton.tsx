@@ -14,7 +14,7 @@ export default function DeleteRecipeButton({ id }: DeleteRecipeButtonProps) {
 
   async function deleteRecipe(id: string) {
     try {
-      const response = await fetch(`http://localhost:3000/api/recipes/${id}`, {
+      const response = await fetch(`/api/recipes/${id}`, {
         method: "DELETE",
       })
       if (!response.ok) {

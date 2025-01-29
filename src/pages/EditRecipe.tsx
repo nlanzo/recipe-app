@@ -75,9 +75,7 @@ export default function EditRecipe() {
 
   const { id } = useParams<{ id: string }>()
 
-  const data = useDataLoader<RecipeDetails>(
-    `http://localhost:3000/api/recipes/${id}`
-  )
+  const data = useDataLoader<RecipeDetails>(`/api/recipes/${id}`)
 
   // Pre-populate the form fields with the recipe data
   useEffect(() => {
@@ -146,7 +144,7 @@ export default function EditRecipe() {
 
     // Submit recipe to the server
     try {
-      const response = await fetch(`http://localhost:3000/api/recipes/${id}`, {
+      const response = await fetch(`/api/recipes/${id}`, {
         method: "PUT",
         body: formData,
       })

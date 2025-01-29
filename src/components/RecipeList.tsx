@@ -13,7 +13,7 @@ interface Recipe {
 }
 
 export default function RecipeList() {
-  const data = useDataLoader<Recipe[]>("http://localhost:3000/api/recipes")
+  const data = useDataLoader<Recipe[]>("/api/recipes")
   const [sortBy, setSortBy] = useState<"title" | "time">("title")
   const [page, setPage] = useState(1)
   const recipesPerPage = 6

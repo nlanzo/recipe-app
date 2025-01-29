@@ -92,7 +92,7 @@ export default function AddRecipe() {
 
     // Submit recipe to the server
     try {
-      const response = await fetch("http://localhost:3000/api/recipes", {
+      const response = await fetch("/api/recipes", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
