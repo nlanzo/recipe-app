@@ -20,10 +20,12 @@ import {
   recipeIngredientsTable,
   imagesTable,
   savedRecipesTable,
+  usersTable,
 } from "../db/schema"
 import { eq, and } from "drizzle-orm"
 import { AuthService } from "./services/authService"
 import { authenticateToken, AuthRequest } from "./middleware/auth"
+import bcrypt from "bcrypt"
 
 // Initialize Express app
 const app = express()
@@ -619,6 +621,55 @@ app.get(
     } catch (error) {
       console.error("Error fetching user's recipes:", error)
       res.status(500).json({ error: "Failed to fetch user's recipes" })
+    }
+  }
+)
+
+app.put(
+  "/api/user/password",
+  authenticateToken,
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const { currentPassword, newPassword } = req.body
+      const userId = req.userId
+
+      // Get user from database
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, userId!))
+        .limit(1)
+
+      if (!user) {
+        res.status(404).json({ error: "User not found" })
+        return
+      }
+
+      // Verify current password
+      const isValidPassword = await bcrypt.compare(
+        currentPassword,
+        user.passwordHash
+      )
+      if (!isValidPassword) {
+        res.status(401).json({ error: "Current password is incorrect" })
+        return
+      }
+
+      // Hash new password
+      const newPasswordHash = await bcrypt.hash(newPassword, 10)
+
+      // Update password in database
+      await db
+        .update(usersTable)
+        .set({ passwordHash: newPasswordHash })
+        .where(eq(usersTable.id, userId!))
+
+      res.status(200).json({ message: "Password updated successfully" })
+    } catch (error: unknown) {
+      console.error("Error updating password:", error)
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to update password"
+      res.status(500).json({ error: errorMessage })
     }
   }
 )

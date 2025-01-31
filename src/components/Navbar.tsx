@@ -51,6 +51,8 @@ export default function Navbar() {
       logout()
     } else if (setting === "Profile") {
       navigate("/profile")
+    } else if (setting === "Account") {
+      navigate("/account")
     }
     // Add other cases for Account if needed
   }
