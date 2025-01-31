@@ -593,6 +593,36 @@ app.get(
   }
 )
 
+// Get user's created recipes
+app.get(
+  "/api/user/my-recipes",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    const userId = req.userId
+
+    try {
+      const myRecipes = await db
+        .select({
+          id: recipesTable.id,
+          title: recipesTable.title,
+          imageUrl: imagesTable.imageUrl,
+          totalTimeInMinutes: recipesTable.totalTimeInMinutes,
+          numberOfServings: recipesTable.numberOfServings,
+        })
+        .from(recipesTable)
+        .leftJoin(imagesTable, eq(imagesTable.recipeId, recipesTable.id))
+        .where(
+          and(eq(recipesTable.userId, userId!), eq(imagesTable.isPrimary, true))
+        )
+
+      res.json(myRecipes)
+    } catch (error) {
+      console.error("Error fetching user's recipes:", error)
+      res.status(500).json({ error: "Failed to fetch user's recipes" })
+    }
+  }
+)
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`)

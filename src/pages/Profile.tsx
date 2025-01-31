@@ -10,6 +10,7 @@ export default function Profile() {
   const savedRecipes = useDataLoader<RecipeCardProps[]>(
     "/api/user/saved-recipes"
   )
+  const myRecipes = useDataLoader<RecipeCardProps[]>("/api/user/my-recipes")
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue)
@@ -37,7 +38,13 @@ export default function Profile() {
       )}
 
       {activeTab === 1 && (
-        <Typography>My recipes implementation coming soon...</Typography>
+        <Grid container spacing={2}>
+          {myRecipes.data?.map((recipe) => (
+            <Grid key={recipe.id} size={{ xs: 12, sm: 6, md: 4 }}>
+              <RecipeCard {...recipe} />
+            </Grid>
+          ))}
+        </Grid>
       )}
     </Box>
   )
