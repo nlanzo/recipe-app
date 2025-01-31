@@ -13,10 +13,12 @@ import { useDataLoader } from "../components/useDataLoader"
 import DeleteRecipeButton from "../components/DeleteRecipeButton"
 import EditRecipeButton from "../components/EditRecipeButton"
 import SaveRecipeButton from "../components/SaveRecipeButton"
+import { useAuth } from "../contexts/useAuth"
 
 interface RecipeDetails {
   name: string
   author: string | null
+  userId: number
   categories: string[]
   images: { imageUrl: string; altText: string | null }[]
   description: string | null
@@ -35,6 +37,7 @@ export default function RecipeDetails() {
   const { id } = useParams()
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const data = useDataLoader<RecipeDetails>(`/api/recipes/${id}`)
+  const { user: currentUser } = useAuth()
 
   const handleNextImage = () => {
     setCurrentImageIndex((prevIndex) =>
@@ -164,8 +167,12 @@ export default function RecipeDetails() {
             <Typography variant="body1">{data.data?.instructions}</Typography>
           </Box>
           <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-            <EditRecipeButton id={id!} />
-            <DeleteRecipeButton id={id!} />
+            {data.data?.userId === currentUser?.id && (
+              <>
+                <EditRecipeButton id={id!} />
+                <DeleteRecipeButton id={id!} />
+              </>
+            )}
             <SaveRecipeButton recipeId={id!} />
           </Box>
         </Box>

@@ -35,6 +35,7 @@ export async function getRecipeById(id: number) {
     .select({
       title: recipesTable.title,
       author: usersTable.username,
+      userId: recipesTable.userId,
       description: recipesTable.description,
       instructions: recipesTable.instructions,
       activeTimeInMinutes: recipesTable.activeTimeInMinutes,
