@@ -19,8 +19,9 @@ import {
   unitsTable,
   recipeIngredientsTable,
   imagesTable,
+  savedRecipesTable,
 } from "../db/schema"
-import { eq } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 import { AuthService } from "./services/authService"
 import { authenticateToken, AuthRequest } from "./middleware/auth"
 
@@ -57,11 +58,13 @@ app.get("/api/recipes", async (_req: Request, res: Response) => {
   res.json(recipes)
 })
 
+// TODO update this endpoint
+
 app.post(
   "/api/recipes",
   authenticateToken,
   upload.array("images", 10),
-  async (req: AuthRequest, res) => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     const userId = req.userId
     const {
       title,
@@ -87,10 +90,10 @@ app.post(
         const recipe = await trx
           .insert(recipesTable)
           .values({
-            title,
-            description,
-            instructions,
-            activeTimeInMinutes: Number(activeTime),
+            title: title,
+            description: description,
+            instructions: instructions,
+            activeTimeInMinutes: activeTime ? Number(activeTime) : 0,
             totalTimeInMinutes: Number(totalTime),
             numberOfServings: Number(servings),
             userId,
@@ -487,8 +490,10 @@ app.post("/api/auth/register", async (req, res) => {
     const { username, email, password } = req.body
     const result = await AuthService.register({ username, email, password })
     res.json(result)
-  } catch (error) {
-    res.status(400).json({ error: error.message })
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Registration failed"
+    res.status(400).json({ error: errorMessage })
   }
 })
 
@@ -497,10 +502,91 @@ app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body
     const result = await AuthService.login({ email, password })
     res.json(result)
-  } catch (error) {
-    res.status(401).json({ error: error.message })
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Login failed"
+    res.status(401).json({ error: errorMessage })
   }
 })
+
+// Save a recipe
+app.post(
+  "/api/recipes/:id/save",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    const recipeId = parseInt(req.params.id)
+    const userId = req.userId
+
+    try {
+      await db.insert(savedRecipesTable).values({
+        userId,
+        recipeId,
+      })
+      res.status(200).json({ message: "Recipe saved successfully" })
+    } catch (error: unknown) {
+      console.error("Error saving recipe:", error)
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save recipe"
+      res.status(500).json({ error: errorMessage })
+    }
+  }
+)
+
+// Unsave a recipe
+app.delete(
+  "/api/recipes/:id/save",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    const recipeId = parseInt(req.params.id)
+    const userId = req.userId
+
+    try {
+      await db
+        .delete(savedRecipesTable)
+        .where(
+          and(
+            eq(savedRecipesTable.userId, userId),
+            eq(savedRecipesTable.recipeId, recipeId)
+          )
+        )
+      res.status(200).json({ message: "Recipe unsaved successfully" })
+    } catch (error) {
+      console.error("Error unsaving recipe:", error)
+      res.status(500).json({ error: "Failed to unsave recipe" })
+    }
+  }
+)
+
+// Get user's saved recipes
+app.get(
+  "/api/user/saved-recipes",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    const userId = req.userId
+
+    try {
+      const savedRecipes = await db
+        .select({
+          id: recipesTable.id,
+          title: recipesTable.title,
+          imageUrl: imagesTable.imageUrl,
+          totalTimeInMinutes: recipesTable.totalTimeInMinutes,
+          numberOfServings: recipesTable.numberOfServings,
+        })
+        .from(savedRecipesTable)
+        .innerJoin(
+          recipesTable,
+          eq(savedRecipesTable.recipeId, recipesTable.id)
+        )
+        .leftJoin(imagesTable, eq(imagesTable.recipeId, recipesTable.id))
+        .where(eq(savedRecipesTable.userId, userId!))
+
+      res.json(savedRecipes)
+    } catch (error) {
+      console.error("Error fetching saved recipes:", error)
+      res.status(500).json({ error: "Failed to fetch saved recipes" })
+    }
+  }
+)
 
 // Start the server
 app.listen(port, () => {

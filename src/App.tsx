@@ -11,6 +11,7 @@ import { AuthProvider } from "./contexts/AuthProvider"
 import AddRecipe from "./pages/AddRecipe"
 import EditRecipe from "./pages/EditRecipe"
 import ProtectedRoute from "./components/ProtectedRoute"
+import Profile from "./pages/Profile"
 
 export default function App() {
   return (
@@ -39,6 +40,14 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <EditRecipe />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
                   </ProtectedRoute>
                 }
               />

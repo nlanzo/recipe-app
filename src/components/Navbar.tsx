@@ -12,14 +12,14 @@ import Button from "@mui/material/Button"
 import Tooltip from "@mui/material/Tooltip"
 import MenuItem from "@mui/material/MenuItem"
 import AdbIcon from "@mui/icons-material/Adb"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useTheme } from "../contexts/useTheme"
 import Brightness4Icon from "@mui/icons-material/Brightness4"
 import Brightness7Icon from "@mui/icons-material/Brightness7"
 import SettingsIcon from "@mui/icons-material/Settings"
 import { useAuth } from "../contexts/useAuth"
 
-const settings = ["Profile", "Account", "Dashboard", "Logout"]
+const settings = ["Profile", "Account", "Logout"]
 
 export default function Navbar() {
   const { isDarkMode, toggleTheme } = useTheme()
@@ -28,6 +28,7 @@ export default function Navbar() {
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null
   )
+  const navigate = useNavigate()
 
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElNav(event.currentTarget)
@@ -48,8 +49,10 @@ export default function Navbar() {
     handleCloseUserMenu()
     if (setting === "Logout") {
       logout()
+    } else if (setting === "Profile") {
+      navigate("/profile")
     }
-    // Add other cases for Profile, Account, Dashboard if needed
+    // Add other cases for Account if needed
   }
 
   const themeToggle = (

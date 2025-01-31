@@ -83,10 +83,22 @@ export const imagesTable = pgTable("images", {
   isPrimary: boolean("is_primary").default(false).notNull(), // Indicates if the image is the primary image for the recipe
 })
 
+export const savedRecipesTable = pgTable("saved_recipes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => usersTable.id)
+    .notNull(),
+  recipeId: integer("recipe_id")
+    .references(() => recipesTable.id)
+    .notNull(),
+  savedAt: timestamp("saved_at").defaultNow(),
+})
+
 // Relations
 
 export const userRelations = relations(usersTable, ({ many }) => ({
   recipes: many(recipesTable),
+  savedRecipes: many(savedRecipesTable),
 }))
 
 export const recipeRelations = relations(recipesTable, ({ many, one }) => ({

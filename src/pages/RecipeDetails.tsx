@@ -12,6 +12,7 @@ import { useParams } from "react-router-dom"
 import { useDataLoader } from "../components/useDataLoader"
 import DeleteRecipeButton from "../components/DeleteRecipeButton"
 import EditRecipeButton from "../components/EditRecipeButton"
+import SaveRecipeButton from "../components/SaveRecipeButton"
 
 interface RecipeDetails {
   name: string
@@ -162,9 +163,11 @@ export default function RecipeDetails() {
             </Typography>
             <Typography variant="body1">{data.data?.instructions}</Typography>
           </Box>
-          <hr />
-          <EditRecipeButton id={id!} />
-          <DeleteRecipeButton id={id!} />
+          <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
+            <EditRecipeButton id={id!} />
+            <DeleteRecipeButton id={id!} />
+            <SaveRecipeButton recipeId={id!} />
+          </Box>
         </Box>
       ) : (
         <Typography variant="h4">Loading...</Typography>
