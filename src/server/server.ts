@@ -578,7 +578,12 @@ app.get(
           eq(savedRecipesTable.recipeId, recipesTable.id)
         )
         .leftJoin(imagesTable, eq(imagesTable.recipeId, recipesTable.id))
-        .where(eq(savedRecipesTable.userId, userId!))
+        .where(
+          and(
+            eq(savedRecipesTable.userId, userId!),
+            eq(imagesTable.isPrimary, true)
+          )
+        )
 
       res.json(savedRecipes)
     } catch (error) {
