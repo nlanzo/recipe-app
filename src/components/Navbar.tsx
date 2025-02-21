@@ -76,12 +76,6 @@ export default function Navbar() {
               ":hover": { color: "white" },
             }}
           >
-            <AdbIcon
-              sx={{
-                display: { xs: "none", md: "flex" },
-                mr: 1,
-              }}
-            />
             <Typography
               variant="h6"
               noWrap
@@ -145,7 +139,6 @@ export default function Navbar() {
               </MenuItem>
             </Menu>
           </Box>
-          <AdbIcon sx={{ display: { xs: "flex", md: "none" }, mr: 1 }} />
           <Typography
             variant="h5"
             noWrap
