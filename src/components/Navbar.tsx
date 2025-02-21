@@ -67,30 +67,25 @@ export default function Navbar() {
     <AppBar position="sticky" sx={{ mb: 2, maxWidth: "xl", mx: "auto" }}>
       <Container maxWidth="lg">
         <Toolbar disableGutters>
-          <Button
-            component={Link}
-            to="/"
-            sx={{
-              display: { xs: "none", md: "flex" },
-              color: "secondary.main",
-              ":hover": { color: "white" },
-            }}
-          >
+
             <Typography
-              variant="h6"
+              variant="h5"
               noWrap
+              component={Link}
+            to="/"
               sx={{
                 mr: 2,
                 display: { xs: "none", md: "flex" },
                 fontFamily: "monospace",
                 fontWeight: 700,
-                letterSpacing: ".2rem",
+                letterSpacing: ".3rem",
                 textDecoration: "none",
+                color: "secondary.main",
+              ":hover": { color: "white" },
               }}
             >
               RecipeApp
             </Typography>
-          </Button>
 
           <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
             <IconButton
@@ -99,7 +94,7 @@ export default function Navbar() {
               aria-controls="menu-appbar"
               aria-haspopup="true"
               onClick={handleOpenNavMenu}
-              color="inherit"
+              sx={{ color: "secondary.main", ":hover": { color: "white" } }}
             >
               <MenuIcon />
             </IconButton>
@@ -151,8 +146,9 @@ export default function Navbar() {
               fontFamily: "monospace",
               fontWeight: 700,
               letterSpacing: ".3rem",
-              color: "inherit",
               textDecoration: "none",
+              color: "secondary.main",
+              ":hover": { color: "white" },
             }}
           >
             RecipeApp
