@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 
 .env
+certs/secret-key-2.pem
