@@ -4,7 +4,9 @@ import jwt from "jsonwebtoken"
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
 
 export interface AuthRequest extends Request {
-  userId?: number
+  user?: {
+    userId: number
+  }
 }
 
 export const authenticateToken = (
@@ -22,7 +24,7 @@ export const authenticateToken = (
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: number }
-    ;(req as AuthRequest).userId = decoded.userId
+    ;(req as AuthRequest).user = { userId: decoded.userId }
     next()
   } catch {
     res.status(403).json({ error: "Invalid token" })

@@ -66,8 +66,12 @@ app.post(
   "/api/recipes",
   authenticateToken,
   upload.array("images", 10),
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    const userId = req.userId
+  async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as AuthRequest).user?.userId
+    if (!userId) {
+      res.status(401).json({ error: "User ID is required" })
+      return
+    }
     const {
       title,
       description,
@@ -92,13 +96,13 @@ app.post(
         const recipe = await trx
           .insert(recipesTable)
           .values({
+            userId,
             title: title,
             description: description,
             instructions: instructions,
             activeTimeInMinutes: activeTime ? Number(activeTime) : 0,
             totalTimeInMinutes: Number(totalTime),
             numberOfServings: Number(servings),
-            userId,
           })
           .returning()
 
@@ -516,12 +520,17 @@ app.post(
   authenticateToken,
   async (req: AuthRequest, res: Response) => {
     const recipeId = parseInt(req.params.id)
-    const userId = req.userId
+    const userId = (req as AuthRequest).user?.userId
+
+    if (!userId) {
+      res.status(401).json({ error: "User ID is required" })
+      return
+    }
 
     try {
       await db.insert(savedRecipesTable).values({
-        userId,
         recipeId,
+        userId,
       })
       res.status(200).json({ message: "Recipe saved successfully" })
     } catch (error: unknown) {
@@ -539,7 +548,12 @@ app.delete(
   authenticateToken,
   async (req: AuthRequest, res: Response) => {
     const recipeId = parseInt(req.params.id)
-    const userId = req.userId
+    const userId = (req as AuthRequest).user?.userId
+
+    if (!userId) {
+      res.status(401).json({ error: "User ID is required" })
+      return
+    }
 
     try {
       await db
@@ -563,7 +577,12 @@ app.get(
   "/api/user/saved-recipes",
   authenticateToken,
   async (req: AuthRequest, res: Response) => {
-    const userId = req.userId
+    const userId = (req as AuthRequest).user?.userId
+
+    if (!userId) {
+      res.status(401).json({ error: "User ID is required" })
+      return
+    }
 
     try {
       const savedRecipes = await db
@@ -582,7 +601,7 @@ app.get(
         .leftJoin(imagesTable, eq(imagesTable.recipeId, recipesTable.id))
         .where(
           and(
-            eq(savedRecipesTable.userId, userId!),
+            eq(savedRecipesTable.userId, userId),
             eq(imagesTable.isPrimary, true)
           )
         )
@@ -600,7 +619,12 @@ app.get(
   "/api/user/my-recipes",
   authenticateToken,
   async (req: AuthRequest, res: Response) => {
-    const userId = req.userId
+    const userId = (req as AuthRequest).user?.userId
+
+    if (!userId) {
+      res.status(401).json({ error: "User ID is required" })
+      return
+    }
 
     try {
       const myRecipes = await db
@@ -631,7 +655,7 @@ app.put(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const { currentPassword, newPassword } = req.body
-      const userId = req.userId
+      const userId = (req as AuthRequest).user?.userId
 
       // Get user from database
       const [user] = await db
