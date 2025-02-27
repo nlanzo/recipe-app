@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "server": "tsx ./src/server/server.ts",
     "build": "tsc -b && vite build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "start:server": "node dist/server/server.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },

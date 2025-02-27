@@ -9,8 +9,8 @@ import {
   S3Client,
   S3ServiceException,
 } from "@aws-sdk/client-s3"
-import { getRecipeById, getRecipeCardData } from "../db/recipeQueries"
-import { db } from "../db"
+import { getRecipeById, getRecipeCardData } from "./db/recipeQueries"
+import { db } from "./db"
 import {
   recipesTable,
   categoriesTable,
