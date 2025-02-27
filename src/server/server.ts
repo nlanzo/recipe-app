@@ -9,8 +9,8 @@ import {
   S3Client,
   S3ServiceException,
 } from "@aws-sdk/client-s3"
-import { getRecipeById, getRecipeCardData } from "./db/recipeQueries"
-import { db } from "./db"
+import { getRecipeById, getRecipeCardData } from "../db/recipeQueries"
+import { db } from "../db"
 import {
   recipesTable,
   categoriesTable,
@@ -26,6 +26,7 @@ import { eq, and } from "drizzle-orm"
 import { AuthService } from "./services/authService"
 import { authenticateToken, AuthRequest } from "./middleware/auth"
 import bcrypt from "bcrypt"
+import { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 
 // Initialize Express app
 const app = express()
@@ -91,7 +92,7 @@ app.post(
       const parsedCategories = categories ? JSON.parse(categories) : []
       const parsedIngredients = ingredients ? JSON.parse(ingredients) : []
 
-      await db.transaction(async (trx) => {
+      await db.transaction(async (trx: PostgresJsDatabase) => {
         // Step 1: Add Recipe
         const recipe = await trx
           .insert(recipesTable)
@@ -190,8 +191,7 @@ app.post(
                 console.error(
                   `Error from S3 while uploading object to ${s3Params.Bucket}.  ${caught.name}: ${caught.message}`
                 )
-                trx.rollback()
-                break
+                throw new Error("S3 upload failed")
               } else {
                 throw caught
               }
@@ -208,7 +208,7 @@ app.post(
           }
         } else {
           console.error("No files detected to upload.")
-          trx.rollback()
+          throw new Error("No files uploaded")
         }
 
         res
@@ -248,7 +248,7 @@ app.put(
     } = req.body
 
     try {
-      await db.transaction(async (trx) => {
+      await db.transaction(async (trx: PostgresJsDatabase) => {
         // Step 1: Update the recipe details
         await trx
           .update(recipesTable)
@@ -388,8 +388,7 @@ app.put(
                 console.error(
                   `Error from S3 while uploading object to ${s3Params.Bucket}.  ${caught.name}: ${caught.message}`
                 )
-                trx.rollback()
-                return
+                throw new Error("S3 upload failed")
               } else {
                 throw caught
               }
@@ -427,7 +426,7 @@ app.delete(
     }
 
     try {
-      await db.transaction(async (trx) => {
+      await db.transaction(async (trx: PostgresJsDatabase) => {
         // Step 1: Fetch all image URLs for the recipe
         const images = await trx
           .select()
@@ -448,7 +447,6 @@ app.delete(
             await s3Client.send(deleteCommand)
             console.log("Images deleted from S3 successfully.")
           } catch (s3Error) {
-            trx.rollback()
             console.error("Error deleting images from S3:", s3Error)
             throw new Error("Failed to delete images from S3.")
           }
