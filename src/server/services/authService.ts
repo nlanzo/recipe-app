@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
-import { db } from "../../db"
-import { usersTable } from "../../db/schema"
+import { db } from "../../db/index.js"
+import { usersTable } from "../../db/schema.js"
 import { eq } from "drizzle-orm"
 
 const SALT_ROUNDS = 10

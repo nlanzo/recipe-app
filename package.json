@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:server": "tsc -p tsconfig.server.json",
+    "build:server": "tsc -p tsconfig.server.json && npm run copy-files",
+    "copy-files": "node -e \"const fs=require('fs'); const path=require('path'); !fs.existsSync('dist/certs') && fs.mkdirSync('dist/certs', {recursive:true}); fs.copyFileSync('certs/us-east-2-bundle.pem', 'dist/certs/us-east-2-bundle.pem'); fs.copyFileSync('.env', 'dist/.env');\"",
     "start:server": "node dist/server/server.js",
     "lint": "eslint .",
     "preview": "vite preview"

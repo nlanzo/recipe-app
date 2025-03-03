@@ -2,8 +2,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "dist",
-    "module": "CommonJS",
-    "moduleResolution": "node"
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "target": "ESNext"
   },
   "include": ["src/server/**/*", "src/db/**/*"],
   "exclude": ["src/client/**/*"]

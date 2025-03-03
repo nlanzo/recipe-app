@@ -7,8 +7,8 @@ import {
   usersTable,
   categoriesTable,
   recipeCategoriesTable,
-} from "./schema"
-import { db } from "./index"
+} from "./schema.js"
+import { db } from "./index.js"
 import { eq } from "drizzle-orm"
 
 export async function getRecipeCardData() {

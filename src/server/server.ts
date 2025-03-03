@@ -9,8 +9,8 @@ import {
   S3Client,
   S3ServiceException,
 } from "@aws-sdk/client-s3"
-import { getRecipeById, getRecipeCardData } from "../db/recipeQueries"
-import { db } from "../db"
+import { getRecipeById, getRecipeCardData } from "../db/recipeQueries.js"
+import { db } from "../db/index.js"
 import {
   recipesTable,
   categoriesTable,
@@ -21,12 +21,15 @@ import {
   imagesTable,
   savedRecipesTable,
   usersTable,
-} from "../db/schema"
+} from "../db/schema.js"
 import { eq, and } from "drizzle-orm"
-import { AuthService } from "./services/authService"
-import { authenticateToken, AuthRequest } from "./middleware/auth"
+import { AuthService } from "./services/authService.js"
+import { authenticateToken, AuthRequest } from "./middleware/auth.js"
 import bcrypt from "bcrypt"
-import { PostgresJsDatabase } from "drizzle-orm/postgres-js"
+import { NodePgDatabase } from "drizzle-orm/node-postgres"
+import * as schema from "../db/schema.js"
+
+type DbType = NodePgDatabase<typeof schema>
 
 // Initialize Express app
 const app = express()
@@ -92,7 +95,7 @@ app.post(
       const parsedCategories = categories ? JSON.parse(categories) : []
       const parsedIngredients = ingredients ? JSON.parse(ingredients) : []
 
-      await db.transaction(async (trx: PostgresJsDatabase) => {
+      await db.transaction(async (trx: DbType) => {
         // Step 1: Add Recipe
         const recipe = await trx
           .insert(recipesTable)
@@ -248,7 +251,7 @@ app.put(
     } = req.body
 
     try {
-      await db.transaction(async (trx: PostgresJsDatabase) => {
+      await db.transaction(async (trx: DbType) => {
         // Step 1: Update the recipe details
         await trx
           .update(recipesTable)
@@ -426,7 +429,7 @@ app.delete(
     }
 
     try {
-      await db.transaction(async (trx: PostgresJsDatabase) => {
+      await db.transaction(async (trx: DbType) => {
         // Step 1: Fetch all image URLs for the recipe
         const images = await trx
           .select()

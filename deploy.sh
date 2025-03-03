@@ -1,6 +1,9 @@
 #!/bin/bash
 # deploy.sh
 
+# Clean dist directory
+rm -rf dist
+
 # Build frontend
 npm run build
 
@@ -11,6 +14,3 @@ npm run build:server
 mkdir -p dist/certs
 cp certs/us-east-2-bundle.pem dist/certs/
 cp .env dist/
-
-# Start server
-npm run start:server

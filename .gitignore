@@ -24,4 +24,8 @@ dist-ssr
 *.sw?
 
 .env
-certs/secret-key-2.pem
+.ssh
+
+#scripts
+deploy.sh
+deploy-to-ec2.sh

@@ -7,8 +7,8 @@ import {
   unitsTable,
   imagesTable,
   usersTable,
-} from "../../db/schema"
-import { db } from "../../db/index"
+} from "../../db/schema.js"
+import { db } from "../../db/index.js"
 import { eq } from "drizzle-orm"
 
 interface Ingredient {
