@@ -37,6 +37,9 @@ const port = 3000
 app.use(cors())
 app.use(express.json())
 
+// Serve static files from the dist directory
+app.use(express.static("dist"))
+
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
   credentials: {
@@ -699,7 +702,13 @@ app.put(
   }
 )
 
+// Add this after all your API routes, just before app.listen
+// Catch-all route to serve index.html for client-side routing
+app.get("*", (_req, res) => {
+  res.sendFile("index.html", { root: "dist" })
+})
+
 // Start the server
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`)
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server running on http://0.0.0.0:${port}`)
 })
