@@ -30,3 +30,7 @@ dist-ssr
 deploy.sh
 deploy-to-ec2.sh
 start-server.sh
+setup-ssl.sh
+
+#certs
+certs/private-key.pem

@@ -28,14 +28,42 @@ import { authenticateToken, AuthRequest } from "./middleware/auth.js"
 import bcrypt from "bcrypt"
 import { NodePgDatabase } from "drizzle-orm/node-postgres"
 import * as schema from "../db/schema.js"
+import https from "https"
+import fs from "fs"
+import http from "http"
 
 type DbType = NodePgDatabase<typeof schema>
 
 // Initialize Express app
 const app = express()
-const port = 3000
+const port = process.env.PORT || 443 // Standard HTTPS port
+const httpPort = 80 // Standard HTTP port
+const domain = process.env.DOMAIN_NAME
 app.use(cors())
 app.use(express.json())
+
+// Create servers
+let httpsServer: https.Server | null = null
+
+// Try to load SSL certificates if they exist
+try {
+  if (!domain) {
+    throw new Error("DOMAIN_NAME not set in environment variables")
+  }
+  const sslOptions = {
+    cert: fs.readFileSync(`/etc/letsencrypt/live/${domain}/fullchain.pem`),
+    key: fs.readFileSync(`/etc/letsencrypt/live/${domain}/privkey.pem`),
+  }
+  httpsServer = https.createServer(sslOptions, app)
+  console.log(`SSL certificates loaded successfully for ${domain}`)
+} catch (error) {
+  console.log(
+    "SSL certificates not found or configuration error:",
+    error instanceof Error ? error.message : "Unknown error"
+  )
+}
+
+const httpServer = http.createServer(app)
 
 // Serve static files from the dist directory
 app.use(express.static("dist"))
@@ -708,7 +736,13 @@ app.get("*", (_req, res) => {
   res.sendFile("index.html", { root: "dist" })
 })
 
-// Start the server
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Server running on http://0.0.0.0:${port}`)
+// Start the servers
+httpServer.listen(httpPort, "0.0.0.0", () => {
+  console.log(`HTTP Server running on http://0.0.0.0:${httpPort}`)
 })
+
+if (httpsServer) {
+  httpsServer.listen(Number(port), "0.0.0.0", () => {
+    console.log(`HTTPS Server running on https://0.0.0.0:${port}`)
+  })
+}
