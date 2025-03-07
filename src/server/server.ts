@@ -31,14 +31,22 @@ import * as schema from "../db/schema.js"
 import https from "https"
 import fs from "fs"
 import http from "http"
+import path from "path"
 
 type DbType = NodePgDatabase<typeof schema>
 
 // Initialize Express app
 const app = express()
 const port = process.env.PORT || 443 // Standard HTTPS port
-const httpPort = 80 // Standard HTTP port
+const httpPort = 3000 // Use port 3000 for HTTP since Nginx will handle port 80
 const domain = process.env.DOMAIN_NAME
+
+// Debug environment variables
+console.log("Environment Variables:")
+console.log("DOMAIN_NAME:", domain)
+console.log("NODE_ENV:", process.env.NODE_ENV)
+console.log("Current Directory:", process.cwd())
+
 app.use(cors())
 app.use(express.json())
 
@@ -50,12 +58,25 @@ try {
   if (!domain) {
     throw new Error("DOMAIN_NAME not set in environment variables")
   }
-  const sslOptions = {
-    cert: fs.readFileSync(`/etc/letsencrypt/live/${domain}/fullchain.pem`),
-    key: fs.readFileSync(`/etc/letsencrypt/live/${domain}/privkey.pem`),
+
+  // Check if SSL certificates exist
+  const certPath = `/etc/letsencrypt/live/${domain}/fullchain.pem`
+  const keyPath = `/etc/letsencrypt/live/${domain}/privkey.pem`
+
+  console.log("Checking SSL certificates:")
+  console.log("Certificate path:", certPath)
+  console.log("Key path:", keyPath)
+
+  if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+    console.log("SSL certificates not found, running in HTTP-only mode")
+  } else {
+    const sslOptions = {
+      cert: fs.readFileSync(certPath),
+      key: fs.readFileSync(keyPath),
+    }
+    httpsServer = https.createServer(sslOptions, app)
+    console.log(`SSL certificates loaded successfully for ${domain}`)
   }
-  httpsServer = https.createServer(sslOptions, app)
-  console.log(`SSL certificates loaded successfully for ${domain}`)
 } catch (error) {
   console.log(
     "SSL certificates not found or configuration error:",
@@ -66,7 +87,9 @@ try {
 const httpServer = http.createServer(app)
 
 // Serve static files from the dist directory
-app.use(express.static("dist"))
+const staticPath = path.join(process.cwd(), "dist")
+console.log("Serving static files from:", staticPath)
+app.use(express.static(staticPath))
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,

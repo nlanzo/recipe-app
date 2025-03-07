@@ -31,6 +31,8 @@ deploy.sh
 deploy-to-ec2.sh
 start-server.sh
 setup-ssl.sh
+setup-nginx.sh
+ecosystem.config.cjs
 
 #certs
 certs/private-key.pem
