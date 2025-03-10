@@ -11,7 +11,6 @@ import Avatar from "@mui/material/Avatar"
 import Button from "@mui/material/Button"
 import Tooltip from "@mui/material/Tooltip"
 import MenuItem from "@mui/material/MenuItem"
-import AdbIcon from "@mui/icons-material/Adb"
 import { Link, useNavigate } from "react-router-dom"
 import { useTheme } from "../contexts/useTheme"
 import Brightness4Icon from "@mui/icons-material/Brightness4"
@@ -67,25 +66,24 @@ export default function Navbar() {
     <AppBar position="sticky" sx={{ mb: 2, maxWidth: "xl", mx: "auto" }}>
       <Container maxWidth="lg">
         <Toolbar disableGutters>
-
-            <Typography
-              variant="h5"
-              noWrap
-              component={Link}
+          <Typography
+            variant="h5"
+            noWrap
+            component={Link}
             to="/"
-              sx={{
-                mr: 2,
-                display: { xs: "none", md: "flex" },
-                fontFamily: "monospace",
-                fontWeight: 700,
-                letterSpacing: ".3rem",
-                textDecoration: "none",
-                color: "secondary.main",
+            sx={{
+              mr: 2,
+              display: { xs: "none", md: "flex" },
+              fontFamily: "monospace",
+              fontWeight: 700,
+              letterSpacing: ".3rem",
+              textDecoration: "none",
+              color: "secondary.main",
               ":hover": { color: "white" },
-              }}
-            >
-              RecipeApp
-            </Typography>
+            }}
+          >
+            chopchoprecipes.com
+          </Typography>
 
           <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
             <IconButton
@@ -151,7 +149,7 @@ export default function Navbar() {
               ":hover": { color: "white" },
             }}
           >
-            RecipeApp
+            chopchoprecipes.com
           </Typography>
           <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
             <Button

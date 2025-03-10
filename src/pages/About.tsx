@@ -4,13 +4,13 @@ export default function About() {
   return (
     <Box component="div" sx={{ maxWidth: "xl", mx: "auto", mt: 5 }}>
       <Typography variant="h2" sx={{ mb: 4, fontWeight: 500 }}>
-        About RecipeApp
+        About chopchoprecipes.com
       </Typography>
 
       <Typography variant="h5" sx={{ mb: 2 }}>
         Discover and share your favorite recipes from around the world. Whether
-        you're a professional chef or just getting started, Recipe App is your
-        go-to platform for culinary inspiration.
+        you're a professional chef or just getting started, chopchoprecipes.com
+        is your go-to platform for culinary inspiration.
       </Typography>
 
       <Typography variant="h5" sx={{ mb: 2 }}>
@@ -23,9 +23,9 @@ export default function About() {
 
       <Typography variant="h5" sx={{ mb: 2 }}>
         Whether it’s creating a delicious dessert for a special occasion or
-        whipping up a quick weeknight dinner, Recipe App empowers you with the
-        tools and community to succeed in the kitchen. Let's make cooking more
-        than a task — let's make it a passion.
+        whipping up a quick weeknight dinner, chopchoprecipes.com empowers you
+        with the tools and community to succeed in the kitchen. Let's make
+        cooking more than a task — let's make it a passion.
       </Typography>
     </Box>
   )
