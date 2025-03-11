@@ -11,6 +11,7 @@ import {
   InputLabel,
   FormControl,
   Chip,
+  FormHelperText,
 } from "@mui/material"
 import Grid from "@mui/material/Grid2"
 import { TiDelete } from "react-icons/ti"
@@ -21,6 +22,7 @@ import { useAuth } from "../contexts/useAuth"
 export default function AddRecipe() {
   // State management
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [instructions, setInstructions] = useState("")
@@ -51,6 +53,20 @@ export default function AddRecipe() {
   const navigate = useNavigate()
   const { token } = useAuth()
 
+  // Validation helpers
+  const getFieldError = (value: string | number | string[] | ""): boolean => {
+    if (!hasAttemptedSubmit) return false
+    return !value || (Array.isArray(value) && value.length === 0)
+  }
+
+  const getHelperText = (
+    fieldName: string,
+    value: string | number | string[] | ""
+  ): string => {
+    if (!hasAttemptedSubmit) return ""
+    return getFieldError(value) ? `${fieldName} is required` : ""
+  }
+
   // Handlers
   const handleAddIngredient = () => {
     if (newIngredient.name && newIngredient.quantity && newIngredient.unit) {
@@ -64,7 +80,25 @@ export default function AddRecipe() {
   }
 
   const handleAddRecipe = async () => {
+    setHasAttemptedSubmit(true)
+
+    // Validate required fields
+    if (
+      !title ||
+      !description ||
+      !instructions ||
+      !activeTime ||
+      !totalTime ||
+      !servings ||
+      categories.length === 0 ||
+      ingredients.length === 0 ||
+      images.length === 0
+    ) {
+      return
+    }
+
     setIsSubmitting(true)
+    setError(null)
     const formData = new FormData()
     // TODO: Add user authentication and get user ID
     formData.append("userId", "1") // Hardcoded user ID for now
@@ -142,6 +176,8 @@ export default function AddRecipe() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 fullWidth
+                error={getFieldError(title)}
+                helperText={getHelperText("Title", title)}
               />
             </Grid>
             <Grid size={{ xs: 12 }}>
@@ -152,6 +188,8 @@ export default function AddRecipe() {
                 fullWidth
                 multiline
                 rows={3}
+                error={getFieldError(description)}
+                helperText={getHelperText("Description", description)}
               />
             </Grid>
             <Grid size={{ xs: 12 }}>
@@ -162,6 +200,8 @@ export default function AddRecipe() {
                 fullWidth
                 multiline
                 rows={4}
+                error={getFieldError(instructions)}
+                helperText={getHelperText("Instructions", instructions)}
               />
             </Grid>
             <Grid size={{ xs: 4 }}>
@@ -171,6 +211,8 @@ export default function AddRecipe() {
                 value={activeTime}
                 onChange={(e) => setActiveTime(Number(e.target.value) || "")}
                 fullWidth
+                error={getFieldError(activeTime)}
+                helperText={getHelperText("Active time", activeTime)}
               />
             </Grid>
             <Grid size={{ xs: 4 }}>
@@ -180,6 +222,8 @@ export default function AddRecipe() {
                 value={totalTime}
                 onChange={(e) => setTotalTime(Number(e.target.value) || "")}
                 fullWidth
+                error={getFieldError(totalTime)}
+                helperText={getHelperText("Total time", totalTime)}
               />
             </Grid>
             <Grid size={{ xs: 4 }}>
@@ -189,12 +233,14 @@ export default function AddRecipe() {
                 value={servings}
                 onChange={(e) => setServings(Number(e.target.value) || "")}
                 fullWidth
+                error={getFieldError(servings)}
+                helperText={getHelperText("Servings", servings)}
               />
             </Grid>
 
             {/* Categories */}
             <Grid size={{ xs: 12 }}>
-              <FormControl fullWidth>
+              <FormControl fullWidth error={getFieldError(categories)}>
                 <InputLabel>Categories</InputLabel>
                 <Select
                   multiple
@@ -220,6 +266,11 @@ export default function AddRecipe() {
                     </MenuItem>
                   ))}
                 </Select>
+                {getFieldError(categories) && (
+                  <FormHelperText>
+                    Please select at least one category
+                  </FormHelperText>
+                )}
               </FormControl>
             </Grid>
 
@@ -300,22 +351,61 @@ export default function AddRecipe() {
                   </Typography>
                 ))}
               </Box>
+              {hasAttemptedSubmit && ingredients.length === 0 && (
+                <Typography color="error" variant="caption">
+                  Please add at least one ingredient
+                </Typography>
+              )}
             </Grid>
 
             {/* Images */}
             <Grid size={{ xs: 12 }}>
-              <Typography variant="h6">Upload Images</Typography>
-              <input
-                type="file"
-                multiple
-                onChange={(e) => setImages(Array.from(e.target.files || []))}
-              />
-              {error && (
+              <Typography variant="h6" gutterBottom>
+                Upload Images
+              </Typography>
+              <Box
+                sx={{
+                  border: (theme) =>
+                    `1px solid ${
+                      hasAttemptedSubmit && images.length === 0
+                        ? theme.palette.error.main
+                        : theme.palette.divider
+                    }`,
+                  borderRadius: 1,
+                  p: 2,
+                  mb: 1,
+                }}
+              >
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => setImages(Array.from(e.target.files || []))}
+                  style={{ width: "100%" }}
+                />
+              </Box>
+              {hasAttemptedSubmit && images.length === 0 && (
+                <Typography color="error" variant="caption">
+                  Please upload at least one image
+                </Typography>
+              )}
+              {images.length > 0 && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="caption">
+                    Selected images: {images.map((img) => img.name).join(", ")}
+                  </Typography>
+                </Box>
+              )}
+            </Grid>
+
+            {/* Error Message - only show for file size errors */}
+            {error && error.includes("too large") && (
+              <Grid size={{ xs: 12 }}>
                 <Typography color="error" variant="body2">
                   {error}
                 </Typography>
-              )}
-            </Grid>
+              </Grid>
+            )}
 
             {/* Submit Button */}
             <Grid size={{ xs: 12 }}>

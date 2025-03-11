@@ -1,5 +1,5 @@
 // server.ts
-import express, { Request, Response } from "express"
+import express, { Request, Response, NextFunction } from "express"
 import cors from "cors"
 import multer from "multer"
 import {
@@ -32,6 +32,7 @@ import https from "https"
 import fs from "fs"
 import http from "http"
 import path from "path"
+import { z } from "zod"
 
 type DbType = NodePgDatabase<typeof schema>
 
@@ -106,6 +107,71 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 })
 
+// Validation schema for recipe creation
+const recipeSchema = z.object({
+  title: z.string().min(1, "Title is required").max(255, "Title is too long"),
+  description: z.string().min(1, "Description is required"),
+  instructions: z.string().min(1, "Instructions are required"),
+  activeTime: z.string().min(1, "Active time is required").transform(Number),
+  totalTime: z.string().min(1, "Total time is required").transform(Number),
+  servings: z
+    .string()
+    .min(1, "Number of servings is required")
+    .transform(Number),
+  categories: z.string().transform((str: string) => {
+    const parsed = JSON.parse(str)
+    return z
+      .array(z.string())
+      .min(1, "At least one category is required")
+      .parse(parsed)
+  }),
+  ingredients: z.string().transform((str: string) => {
+    const parsed = JSON.parse(str)
+    return z
+      .array(
+        z.object({
+          name: z.string().min(1, "Ingredient name is required"),
+          quantity: z.string().min(1, "Quantity is required"),
+          unit: z.string().min(1, "Unit is required"),
+        })
+      )
+      .min(1, "At least one ingredient is required")
+      .parse(parsed)
+  }),
+})
+
+// Validation middleware
+const validateRecipe = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const validatedData = await recipeSchema.parseAsync(req.body)
+    req.body = validatedData
+
+    // Validate images
+    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+      res.status(400).json({ error: "At least one image is required" })
+      return
+    }
+
+    next()
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
+    next(error)
+  }
+}
+
 // Query the database for the recipe with the specified ID
 app.get("/api/recipes/:id", async (req: Request, res: Response) => {
   const recipeId = parseInt(req.params.id)
@@ -124,6 +190,7 @@ app.post(
   "/api/recipes",
   authenticateToken,
   upload.array("images", 10),
+  validateRecipe,
   async (req: Request, res: Response): Promise<void> => {
     const userId = (req as AuthRequest).user?.userId
     if (!userId) {
