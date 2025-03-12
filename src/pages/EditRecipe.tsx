@@ -12,9 +12,11 @@ import {
   FormControl,
   Chip,
   Paper,
+  FormHelperText,
 } from "@mui/material"
 import Grid from "@mui/material/Grid2"
 import { TiDelete } from "react-icons/ti"
+import { FaSpinner } from "react-icons/fa"
 import { useNavigate, useParams } from "react-router-dom"
 import { useDataLoader } from "../components/useDataLoader"
 
@@ -37,6 +39,8 @@ interface RecipeDetails {
 
 export default function EditRecipe() {
   // State management
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [instructions, setInstructions] = useState("")
@@ -120,7 +124,39 @@ export default function EditRecipe() {
     }
   }
 
+  // Validation helpers
+  const getFieldError = (value: string | number | string[] | ""): boolean => {
+    if (!hasAttemptedSubmit) return false
+    return !value || (Array.isArray(value) && value.length === 0)
+  }
+
+  const getHelperText = (
+    fieldName: string,
+    value: string | number | string[] | ""
+  ): string => {
+    if (!hasAttemptedSubmit) return ""
+    return getFieldError(value) ? `${fieldName} is required` : ""
+  }
+
   const handleSubmit = async () => {
+    setHasAttemptedSubmit(true)
+
+    // Validate required fields
+    if (
+      !title ||
+      !description ||
+      !instructions ||
+      !activeTimeInMinutes ||
+      !totalTimeInMinutes ||
+      !numberOfServings ||
+      categories.length === 0 ||
+      ingredients.length === 0
+    ) {
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
     const formData = new FormData()
     formData.append("title", title)
     formData.append("description", description)
@@ -128,36 +164,46 @@ export default function EditRecipe() {
     formData.append("activeTimeInMinutes", activeTimeInMinutes.toString())
     formData.append("totalTimeInMinutes", totalTimeInMinutes.toString())
     formData.append("numberOfServings", numberOfServings.toString())
-    // Convert categories to JSON string
     formData.append("categories", JSON.stringify(categories))
-    // Convert ingredients to JSON string
     formData.append("ingredients", JSON.stringify(ingredients))
     formData.append("removedImages", JSON.stringify(removedImages))
+
     const maxFileSize = 5 * 1024 * 1024 // 5 MB
     for (const image of newImages) {
       if (image.size > maxFileSize) {
         setError(`File ${image.name} is too large. Maximum size is 5 MB.`)
+        setIsSubmitting(false)
         return
       }
       formData.append("newImages", image)
     }
 
-    // Submit recipe to the server
     try {
       const response = await fetch(`/api/recipes/${id}`, {
         method: "PUT",
         body: formData,
       })
+
       if (response.ok) {
         alert("Recipe edited successfully!")
-        // Navigate to the newly added recipe's details page
         navigate(`/recipes/${id}`)
       } else {
-        alert("Failed to edit recipe.")
+        const errorData = await response.json()
+        if (errorData.error === "Validation failed" && errorData.details) {
+          // Handle validation errors from the server
+          const errorMessages = errorData.details
+            .map((err: { field: string; message: string }) => `${err.message}`)
+            .join("\n")
+          setError(errorMessages)
+        } else {
+          setError(errorData.error || "Failed to edit recipe.")
+        }
       }
     } catch (error) {
       console.error("Error editing recipe:", error)
-      alert("Error editing recipe.")
+      setError("Error editing recipe. Please try again.")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -165,9 +211,11 @@ export default function EditRecipe() {
     <div>
       {!data.isLoading ? (
         <Box sx={{ padding: 4, maxWidth: "800px", margin: "0 auto" }}>
-          {data.error ? (
-            <Typography color="error">{data.error}</Typography>
-          ) : null}
+          {error && (
+            <Typography color="error" sx={{ mb: 2 }}>
+              {error}
+            </Typography>
+          )}
           <Typography variant="h4" gutterBottom>
             Edit Recipe
           </Typography>
@@ -182,6 +230,8 @@ export default function EditRecipe() {
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     fullWidth
+                    error={getFieldError(title)}
+                    helperText={getHelperText("Title", title)}
                   />
                 </Grid>
                 <Grid size={{ xs: 12 }}>
@@ -192,6 +242,8 @@ export default function EditRecipe() {
                     fullWidth
                     multiline
                     rows={3}
+                    error={getFieldError(description)}
+                    helperText={getHelperText("Description", description)}
                   />
                 </Grid>
                 <Grid size={{ xs: 12 }}>
@@ -202,6 +254,8 @@ export default function EditRecipe() {
                     fullWidth
                     multiline
                     rows={4}
+                    error={getFieldError(instructions)}
+                    helperText={getHelperText("Instructions", instructions)}
                   />
                 </Grid>
                 <Grid size={{ xs: 4 }}>
@@ -213,6 +267,11 @@ export default function EditRecipe() {
                       setActiveTimeInMinutes(Number(e.target.value) || "")
                     }
                     fullWidth
+                    error={getFieldError(activeTimeInMinutes)}
+                    helperText={getHelperText(
+                      "Active time",
+                      activeTimeInMinutes
+                    )}
                   />
                 </Grid>
                 <Grid size={{ xs: 4 }}>
@@ -224,6 +283,8 @@ export default function EditRecipe() {
                       setTotalTimeInMinutes(Number(e.target.value) || "")
                     }
                     fullWidth
+                    error={getFieldError(totalTimeInMinutes)}
+                    helperText={getHelperText("Total time", totalTimeInMinutes)}
                   />
                 </Grid>
                 <Grid size={{ xs: 4 }}>
@@ -235,12 +296,14 @@ export default function EditRecipe() {
                       setNumberOfServings(Number(e.target.value) || "")
                     }
                     fullWidth
+                    error={getFieldError(numberOfServings)}
+                    helperText={getHelperText("Servings", numberOfServings)}
                   />
                 </Grid>
 
                 {/* Categories */}
                 <Grid size={{ xs: 12 }}>
-                  <FormControl fullWidth>
+                  <FormControl fullWidth error={getFieldError(categories)}>
                     <InputLabel>Categories</InputLabel>
                     <Select
                       multiple
@@ -266,6 +329,11 @@ export default function EditRecipe() {
                         </MenuItem>
                       ))}
                     </Select>
+                    {getFieldError(categories) && (
+                      <FormHelperText>
+                        Please select at least one category
+                      </FormHelperText>
+                    )}
                   </FormControl>
                 </Grid>
 
@@ -347,6 +415,11 @@ export default function EditRecipe() {
                       </Typography>
                     ))}
                   </Box>
+                  {hasAttemptedSubmit && ingredients.length === 0 && (
+                    <Typography color="error" variant="caption">
+                      Please add at least one ingredient
+                    </Typography>
+                  )}
                 </Grid>
                 <Typography variant="h6" marginTop={2}>
                   Images
@@ -415,15 +488,21 @@ export default function EditRecipe() {
                     onChange={handleAddImage}
                   />
                 </Button>
-                {error ?? <Typography>{error}</Typography>}
                 {/* Submit Button */}
                 <Grid size={{ xs: 12 }}>
                   <Button
                     variant="contained"
                     color="primary"
                     onClick={handleSubmit}
+                    disabled={isSubmitting}
                   >
-                    Submit Recipe
+                    {isSubmitting ? (
+                      <>
+                        Saving Changes... <FaSpinner />
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
                   </Button>
                 </Grid>
               </Grid>

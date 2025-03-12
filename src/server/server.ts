@@ -172,6 +172,70 @@ const validateRecipe = async (
   }
 }
 
+// Validation schema for recipe updates
+const recipeUpdateSchema = z.object({
+  title: z.string().min(1, "Title is required").max(255, "Title is too long"),
+  description: z.string().min(1, "Description is required"),
+  instructions: z.string().min(1, "Instructions are required"),
+  activeTimeInMinutes: z
+    .string()
+    .min(1, "Active time is required")
+    .transform(Number),
+  totalTimeInMinutes: z
+    .string()
+    .min(1, "Total time is required")
+    .transform(Number),
+  numberOfServings: z
+    .string()
+    .min(1, "Number of servings is required")
+    .transform(Number),
+  categories: z.string().transform((str: string) => {
+    const parsed = JSON.parse(str)
+    return z
+      .array(z.string())
+      .min(1, "At least one category is required")
+      .parse(parsed)
+  }),
+  ingredients: z.string().transform((str: string) => {
+    const parsed = JSON.parse(str)
+    return z
+      .array(
+        z.object({
+          name: z.string().min(1, "Ingredient name is required"),
+          quantity: z.string().min(1, "Quantity is required"),
+          unit: z.string().min(1, "Unit is required"),
+        })
+      )
+      .min(1, "At least one ingredient is required")
+      .parse(parsed)
+  }),
+})
+
+// Validation middleware for recipe updates
+const validateRecipeUpdate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const validatedData = await recipeUpdateSchema.parseAsync(req.body)
+    req.body = validatedData
+    next()
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: "Validation failed",
+        details: error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        })),
+      })
+      return
+    }
+    next(error)
+  }
+}
+
 // Query the database for the recipe with the specified ID
 app.get("/api/recipes/:id", async (req: Request, res: Response) => {
   const recipeId = parseInt(req.params.id)
@@ -348,10 +412,12 @@ app.post(
 
 app.put(
   "/api/recipes/:id",
+  authenticateToken,
   upload.array("newImages", 10),
+  validateRecipeUpdate,
   async (req: Request, res: Response): Promise<void> => {
-    console.log("Request body:", req.body) // Debugging: Log the request body
-    console.log("Request files:", req.files) // Debugging: Log the uploaded files
+    console.log("Request body:", req.body)
+    console.log("Request files:", req.files)
     const recipeId = parseInt(req.params.id, 10)
 
     if (isNaN(recipeId)) {
