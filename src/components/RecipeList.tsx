@@ -18,6 +18,15 @@ export default function RecipeList() {
   const [page, setPage] = useState(1)
   const recipesPerPage = 6
 
+  // Handle page change with scroll to top
+  const handlePageChange = (
+    _event: React.ChangeEvent<unknown>,
+    value: number
+  ) => {
+    setPage(value)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
   if (data.isLoading) {
     return <Typography>Loading...</Typography>
   }
@@ -80,7 +89,7 @@ export default function RecipeList() {
               <Pagination
                 count={totalPages}
                 page={page}
-                onChange={(_, value) => setPage(value)}
+                onChange={handlePageChange}
                 color="primary"
               />
             </Box>
