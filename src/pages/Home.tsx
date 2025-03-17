@@ -26,7 +26,7 @@ export default function Home() {
       {!isMobile && (
         <Box sx={{ flex: 1 }}>
           <img
-            src="./plate-of-food.jpg"
+            src="./plate-of-food.png"
             alt="Plate of meat, potatoes, and salad"
             style={{
               maxWidth: "100%",
