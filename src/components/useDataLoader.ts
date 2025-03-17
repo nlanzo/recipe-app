@@ -2,6 +2,9 @@ import { useState, useEffect } from "react"
 import { authenticatedFetch } from "../utils/api"
 import { useAuth } from "../contexts/useAuth"
 
+// Define public routes that don't require authentication
+const publicRoutes = ["/api/recipes", "/api/recipes/"]
+
 export function useDataLoader<T>(url: string) {
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -12,16 +15,31 @@ export function useDataLoader<T>(url: string) {
   useEffect(() => {
     const abortController = new AbortController()
     async function fetchData() {
-      if (!token) {
-        setData(null)
-        return
-      }
-
       try {
         setIsLoading(true)
-        const response = await authenticatedFetch(url, token, {
-          signal: abortController.signal,
-        })
+        let response
+
+        // Check if this is a public route
+        const isPublicRoute = publicRoutes.some((route) =>
+          url.startsWith(route)
+        )
+
+        if (isPublicRoute) {
+          // Use regular fetch for public routes
+          response = await fetch(url, {
+            signal: abortController.signal,
+          })
+        } else {
+          // Use authenticatedFetch for protected routes
+          if (!token) {
+            setData(null)
+            return
+          }
+          response = await authenticatedFetch(url, token, {
+            signal: abortController.signal,
+          })
+        }
+
         setResponse(response)
 
         if (!response.ok) {
