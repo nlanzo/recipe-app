@@ -1,17 +1,25 @@
 import { useState, useEffect } from "react"
 import { authenticatedFetch } from "../utils/api"
+import { useAuth } from "../contexts/useAuth"
 
 export function useDataLoader<T>(url: string) {
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [response, setResponse] = useState<Response | null>(null)
+  const { token } = useAuth()
 
   useEffect(() => {
     const abortController = new AbortController()
     async function fetchData() {
+      if (!token) {
+        setData(null)
+        return
+      }
+
       try {
-        const response = await authenticatedFetch(url, {
+        setIsLoading(true)
+        const response = await authenticatedFetch(url, token, {
           signal: abortController.signal,
         })
         setResponse(response)
@@ -35,13 +43,12 @@ export function useDataLoader<T>(url: string) {
       }
     }
 
-    setIsLoading(true)
     fetchData()
 
     return () => {
       abortController.abort()
     }
-  }, [url])
+  }, [url, token])
 
   return { data, error, isLoading, response }
 }

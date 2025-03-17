@@ -1,13 +1,12 @@
 // src/utils/api.ts
 export async function authenticatedFetch(
   url: string,
+  token: string | null,
   options: RequestInit = {}
 ) {
-  const token = localStorage.getItem("token")
-
   const headers = {
     ...options.headers,
-    Authorization: `Bearer ${token}`,
+    Authorization: token ? `Bearer ${token}` : "",
   }
 
   const response = await fetch(url, {
