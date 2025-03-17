@@ -66,9 +66,9 @@ export default function Navbar() {
     <AppBar position="sticky" sx={{ mb: 2, maxWidth: "xl", mx: "auto" }}>
       <Container maxWidth="lg">
         <Toolbar disableGutters>
+          {/* Desktop logo */}
           <Typography
             variant="h5"
-            noWrap
             component={Link}
             to="/"
             sx={{
@@ -85,7 +85,14 @@ export default function Navbar() {
             chopchoprecipes.com
           </Typography>
 
-          <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
+          {/* Mobile hamburger menu and logo */}
+          <Box
+            sx={{
+              display: { xs: "flex", md: "none" },
+              alignItems: "center",
+              flexGrow: 1,
+            }}
+          >
             <IconButton
               size="large"
               aria-label="account of current user"
@@ -96,61 +103,86 @@ export default function Navbar() {
             >
               <MenuIcon />
             </IconButton>
-            <Menu
-              id="menu-appbar"
-              anchorEl={anchorElNav}
-              anchorOrigin={{
-                vertical: "bottom",
-                horizontal: "left",
+            <Typography
+              variant="h5"
+              component={Link}
+              to="/"
+              sx={{
+                display: { xs: "flex", md: "none" },
+                fontFamily: "monospace",
+                fontWeight: 700,
+                letterSpacing: ".3rem",
+                textDecoration: "none",
+                color: "secondary.main",
+                ":hover": { color: "white" },
+                whiteSpace: "normal",
+                textAlign: "left",
+                fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                lineHeight: 1.2,
+                ml: 1,
               }}
-              keepMounted
-              transformOrigin={{
-                vertical: "top",
-                horizontal: "left",
-              }}
-              open={Boolean(anchorElNav)}
-              onClose={handleCloseNavMenu}
-              sx={{ display: { xs: "block", md: "none" } }}
             >
-              <MenuItem>
-                <Typography
-                  sx={{ textAlign: "center" }}
-                  component={Link}
-                  to="/recipes"
-                >
-                  Recipes
-                </Typography>
-              </MenuItem>
-              <MenuItem>
-                <Typography
-                  sx={{ textAlign: "center" }}
-                  component={Link}
-                  to="/about"
-                >
-                  About Us
-                </Typography>
-              </MenuItem>
-            </Menu>
+              chopchoprecipes.com
+            </Typography>
           </Box>
-          <Typography
-            variant="h5"
-            noWrap
-            component={Link}
-            to="/"
-            sx={{
-              mr: 2,
-              display: { xs: "flex", md: "none" },
-              flexGrow: 1,
-              fontFamily: "monospace",
-              fontWeight: 700,
-              letterSpacing: ".3rem",
-              textDecoration: "none",
-              color: "secondary.main",
-              ":hover": { color: "white" },
+
+          {/* Mobile Menu */}
+          <Menu
+            id="menu-appbar"
+            anchorEl={anchorElNav}
+            anchorOrigin={{
+              vertical: "bottom",
+              horizontal: "left",
             }}
+            keepMounted
+            transformOrigin={{
+              vertical: "top",
+              horizontal: "left",
+            }}
+            open={Boolean(anchorElNav)}
+            onClose={handleCloseNavMenu}
+            sx={{ display: { xs: "block", md: "none" } }}
           >
-            chopchoprecipes.com
-          </Typography>
+            <MenuItem>
+              <Typography
+                sx={{
+                  color: "secondary.main",
+                  textDecoration: "none",
+                }}
+                component={Link}
+                to="/recipes"
+              >
+                Recipes
+              </Typography>
+            </MenuItem>
+            <MenuItem>
+              <Typography
+                sx={{
+                  textAlign: "center",
+                  color: "secondary.main",
+                  textDecoration: "none",
+                }}
+                component={Link}
+                to="/add"
+              >
+                Add Recipe
+              </Typography>
+            </MenuItem>
+            <MenuItem>
+              <Typography
+                sx={{
+                  textAlign: "center",
+                  color: "secondary.main",
+                  textDecoration: "none",
+                }}
+                component={Link}
+                to="/about"
+              >
+                About Us
+              </Typography>
+            </MenuItem>
+          </Menu>
+
           <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
             <Button
               onClick={handleCloseNavMenu}
@@ -225,7 +257,9 @@ export default function Navbar() {
                       key={setting}
                       onClick={() => handleMenuItemClick(setting)}
                     >
-                      <Typography sx={{ textAlign: "center" }}>
+                      <Typography
+                        sx={{ textAlign: "center", color: "secondary.main" }}
+                      >
                         {setting}
                       </Typography>
                     </MenuItem>
