@@ -63,9 +63,27 @@ export default function Navbar() {
   )
 
   return (
-    <AppBar position="sticky" sx={{ mb: 2, maxWidth: "xl", mx: "auto" }}>
-      <Container maxWidth="lg">
-        <Toolbar disableGutters>
+    <AppBar
+      position="sticky"
+      sx={{
+        mb: 2,
+        maxWidth: "100vw",
+        overflowX: "hidden",
+      }}
+    >
+      <Container
+        maxWidth="lg"
+        sx={{
+          px: { xs: 1, sm: 2 },
+        }}
+      >
+        <Toolbar
+          disableGutters
+          sx={{
+            minHeight: { xs: 56, sm: 64 },
+            width: "100%",
+          }}
+        >
           {/* Desktop logo */}
           <Typography
             variant="h5"
@@ -111,13 +129,13 @@ export default function Navbar() {
                 display: { xs: "flex", md: "none" },
                 fontFamily: "monospace",
                 fontWeight: 700,
-                letterSpacing: ".3rem",
                 textDecoration: "none",
                 color: "secondary.main",
                 ":hover": { color: "white" },
                 whiteSpace: "normal",
                 textAlign: "left",
                 fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                letterSpacing: "0.1rem",
                 lineHeight: 1.2,
                 ml: 1,
               }}
@@ -143,7 +161,7 @@ export default function Navbar() {
             onClose={handleCloseNavMenu}
             sx={{ display: { xs: "block", md: "none" } }}
           >
-            <MenuItem>
+            <MenuItem onClick={handleCloseNavMenu}>
               <Typography
                 sx={{
                   color: "secondary.main",
@@ -155,10 +173,9 @@ export default function Navbar() {
                 Recipes
               </Typography>
             </MenuItem>
-            <MenuItem>
+            <MenuItem onClick={handleCloseNavMenu}>
               <Typography
                 sx={{
-                  textAlign: "center",
                   color: "secondary.main",
                   textDecoration: "none",
                 }}
@@ -168,10 +185,9 @@ export default function Navbar() {
                 Add Recipe
               </Typography>
             </MenuItem>
-            <MenuItem>
+            <MenuItem onClick={handleCloseNavMenu}>
               <Typography
                 sx={{
-                  textAlign: "center",
                   color: "secondary.main",
                   textDecoration: "none",
                 }}
@@ -181,6 +197,34 @@ export default function Navbar() {
                 About Us
               </Typography>
             </MenuItem>
+            {!isAuthenticated && (
+              <>
+                <MenuItem onClick={handleCloseNavMenu}>
+                  <Typography
+                    sx={{
+                      color: "secondary.main",
+                      textDecoration: "none",
+                    }}
+                    component={Link}
+                    to="/login"
+                  >
+                    Login
+                  </Typography>
+                </MenuItem>
+                <MenuItem onClick={handleCloseNavMenu}>
+                  <Typography
+                    sx={{
+                      color: "secondary.main",
+                      textDecoration: "none",
+                    }}
+                    component={Link}
+                    to="/register"
+                  >
+                    Register
+                  </Typography>
+                </MenuItem>
+              </>
+            )}
           </Menu>
 
           <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
@@ -210,7 +254,6 @@ export default function Navbar() {
             >
               Add Recipe
             </Button>
-
             <Button
               onClick={handleCloseNavMenu}
               sx={{
@@ -225,7 +268,14 @@ export default function Navbar() {
               About Us
             </Button>
           </Box>
-          <Box sx={{ flexGrow: 0 }}>
+
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+            }}
+          >
             {themeToggle}
             {isAuthenticated ? (
               <>
@@ -267,7 +317,7 @@ export default function Navbar() {
                 </Menu>
               </>
             ) : (
-              <>
+              <Box sx={{ display: { xs: "none", md: "flex" }, gap: 1 }}>
                 <Button
                   component={Link}
                   to="/login"
@@ -288,7 +338,7 @@ export default function Navbar() {
                 >
                   Register
                 </Button>
-              </>
+              </Box>
             )}
           </Box>
         </Toolbar>
