@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../contexts/useAuth"
 import {
   Container,
@@ -11,11 +11,16 @@ import {
   Link,
 } from "@mui/material"
 
+interface LocationState {
+  returnTo?: string
+}
+
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const navigate = useNavigate()
+  const location = useLocation()
   const { login } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,7 +43,10 @@ export default function Login() {
       }
 
       login(data.token, data.user)
-      navigate("/")
+
+      // Navigate to the return URL if it exists, otherwise go to home
+      const state = location.state as LocationState
+      navigate(state?.returnTo || "/")
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
     }

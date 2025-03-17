@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Button } from "@mui/material"
 import { BsBookmark, BsBookmarkFill } from "react-icons/bs"
 import { useAuth } from "../contexts/useAuth"
+import { useNavigate } from "react-router-dom"
 
 interface Props {
   recipeId: string
@@ -14,9 +15,12 @@ interface SavedRecipe {
 
 export default function SaveRecipeButton({ recipeId }: Props) {
   const [isSaved, setIsSaved] = useState(false)
-  const { token } = useAuth()
+  const { token, isAuthenticated } = useAuth()
+  const navigate = useNavigate()
 
   const checkSavedStatus = useCallback(async () => {
+    if (!isAuthenticated) return
+
     try {
       const response = await fetch(`/api/user/saved-recipes`, {
         headers: {
@@ -30,7 +34,7 @@ export default function SaveRecipeButton({ recipeId }: Props) {
     } catch (error) {
       console.error("Error checking saved status:", error)
     }
-  }, [recipeId, token])
+  }, [recipeId, token, isAuthenticated])
 
   useEffect(() => {
     // Check if recipe is saved
@@ -38,6 +42,11 @@ export default function SaveRecipeButton({ recipeId }: Props) {
   }, [checkSavedStatus])
 
   const handleSaveToggle = async () => {
+    if (!isAuthenticated) {
+      navigate("/login", { state: { returnTo: `/recipes/${recipeId}` } })
+      return
+    }
+
     try {
       const response = await fetch(`/api/recipes/${recipeId}/save`, {
         method: isSaved ? "DELETE" : "POST",
@@ -58,9 +67,11 @@ export default function SaveRecipeButton({ recipeId }: Props) {
       variant="contained"
       color="primary"
       onClick={handleSaveToggle}
-      startIcon={isSaved ? <BsBookmarkFill /> : <BsBookmark />}
+      startIcon={
+        isAuthenticated && isSaved ? <BsBookmarkFill /> : <BsBookmark />
+      }
     >
-      {isSaved ? "Saved" : "Save Recipe"}
+      {isAuthenticated ? (isSaved ? "Saved" : "Save Recipe") : "Login to Save"}
     </Button>
   )
 }
