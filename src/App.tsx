@@ -13,6 +13,7 @@ import EditRecipe from "./pages/EditRecipe"
 import ProtectedRoute from "./components/ProtectedRoute"
 import Profile from "./pages/Profile"
 import Account from "./pages/Account"
+import RecipeChatPage from "./pages/RecipeChat"
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<Home />} />
               <Route path="recipes" element={<Recipes />} />
+              <Route path="chat" element={<RecipeChatPage />} />
               <Route path="login" element={<Login />} />
               <Route path="register" element={<Register />} />
               <Route

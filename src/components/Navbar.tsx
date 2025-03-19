@@ -180,6 +180,18 @@ export default function Navbar() {
                   textDecoration: "none",
                 }}
                 component={Link}
+                to="/chat"
+              >
+                Recipe Assistant
+              </Typography>
+            </MenuItem>
+            <MenuItem onClick={handleCloseNavMenu}>
+              <Typography
+                sx={{
+                  color: "secondary.main",
+                  textDecoration: "none",
+                }}
+                component={Link}
                 to="/add"
               >
                 Add Recipe
@@ -240,6 +252,19 @@ export default function Navbar() {
               to="/recipes"
             >
               Explore Recipes
+            </Button>
+            <Button
+              onClick={handleCloseNavMenu}
+              sx={{
+                my: 2,
+                color: "secondary.main",
+                ":hover": { color: "white" },
+                display: "block",
+              }}
+              component={Link}
+              to="/chat"
+            >
+              Recipe Assistant
             </Button>
             <Button
               onClick={handleCloseNavMenu}

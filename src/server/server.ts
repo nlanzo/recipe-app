@@ -33,6 +33,7 @@ import fs from "fs"
 import http from "http"
 import path from "path"
 import { z } from "zod"
+import { handleChat } from "./controllers/chatController.js"
 
 type DbType = NodePgDatabase<typeof schema>
 
@@ -47,6 +48,25 @@ console.log("Environment Variables:")
 console.log("DOMAIN_NAME:", domain)
 console.log("NODE_ENV:", process.env.NODE_ENV)
 console.log("Current Directory:", process.cwd())
+console.log("OPENAI_API_KEY exists:", !!process.env.OPENAI_API_KEY)
+
+// Validate required environment variables
+const requiredEnvVars = [
+  "DATABASE_URL",
+  "AWS_REGION",
+  "AWS_ACCESS_KEY_ID",
+  "AWS_SECRET_ACCESS_KEY",
+  "S3_BUCKET_NAME",
+  "JWT_SECRET",
+  "OPENAI_API_KEY",
+]
+
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`Missing required environment variable: ${envVar}`)
+    process.exit(1)
+  }
+}
 
 app.use(cors())
 app.use(express.json())
@@ -885,6 +905,17 @@ app.put(
     }
   }
 )
+
+// Chat endpoint
+app.post("/api/chat", async (req: Request, res: Response) => {
+  console.log("Received chat request:", req.body)
+  try {
+    await handleChat(req, res)
+  } catch (error) {
+    console.error("Error in chat endpoint:", error)
+    res.status(500).json({ error: "Internal server error in chat processing" })
+  }
+})
 
 // Add this after all your API routes, just before app.listen
 // Catch-all route to serve index.html for client-side routing
