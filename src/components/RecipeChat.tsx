@@ -28,6 +28,12 @@ export default function RecipeChat() {
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Initial focus
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -35,19 +41,21 @@ export default function RecipeChat() {
 
   useEffect(() => {
     scrollToBottom()
-    console.log("Messages updated:", messages)
   }, [messages])
+
+  // Focus input when loading state changes
+  useEffect(() => {
+    if (!isLoading) {
+      setTimeout(() => inputRef.current?.focus(), 0)
+    }
+  }, [isLoading])
 
   const handleSend = async () => {
     if (!input.trim()) return
 
     const userMessage = input.trim()
-    console.log("Sending message:", userMessage)
     setInput("")
-    setMessages((prev) => {
-      console.log("Previous messages:", prev)
-      return [...prev, { role: "user", content: userMessage }]
-    })
+    setMessages((prev) => [...prev, { role: "user", content: userMessage }])
     setIsLoading(true)
 
     try {
@@ -62,11 +70,10 @@ export default function RecipeChat() {
       if (!response.ok) throw new Error("Failed to get response")
 
       const data = await response.json()
-      console.log("Received response:", data)
-      setMessages((prev) => {
-        console.log("Adding assistant message to:", prev)
-        return [...prev, { role: "assistant", content: data.message }]
-      })
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.message },
+      ])
     } catch (error) {
       console.error("Chat error:", error)
       setMessages((prev) => [
@@ -171,6 +178,7 @@ export default function RecipeChat() {
             onChange={(e) => setInput(e.target.value)}
             disabled={isLoading}
             size="small"
+            inputRef={inputRef}
           />
           <IconButton
             color="primary"

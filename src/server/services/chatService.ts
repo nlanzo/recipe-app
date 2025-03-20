@@ -8,6 +8,10 @@ import {
 import { eq } from "drizzle-orm"
 import { sql } from "drizzle-orm"
 import { ChatCompletionMessageParam } from "openai/resources/chat"
+import dotenv from "dotenv"
+
+dotenv.config()
+const DOMAIN_NAME = process.env.DOMAIN_NAME
 
 // Validate OpenAI API key at startup
 const validateOpenAIKey = () => {
@@ -145,13 +149,27 @@ export class ChatService {
       const conversation: ChatCompletionMessageParam[] = [
         {
           role: "system",
-          content: `You are a helpful recipe assistant. Your goal is to understand users' food preferences and dietary requirements, 
-          then suggest appropriate recipes. Ask follow-up questions to better understand their needs. Keep responses friendly and concise.
-          Focus on understanding these key aspects:
-          - Dietary restrictions (vegetarian, vegan, gluten-free, etc.)
-          - Flavor preferences (spicy, sweet, savory, etc.)
-          - Meal type (breakfast, lunch, dinner, snack)
-          - Time constraints (quick meals, meal prep, etc.)`,
+          content: `You are a recipe assistant for ${DOMAIN_NAME}. Your role is to help users find recipes from our existing database only.
+          
+          IMPORTANT RULES:
+          - NEVER suggest or discuss recipes that aren't in our database
+          - NEVER combine or create new recipe variations
+          - ONLY recommend recipes that are returned from our database search
+          - If no matching recipes are found, ask for different preferences or dietary requirements
+          
+          Follow this conversation flow:
+          1. First message: Ask about dietary restrictions (vegetarian, vegan, gluten-free, etc.)
+          2. After learning restrictions: Ask about preferences (meal type, flavors, etc.)
+          3. Once you have enough information: Wait for our database to find matching recipes
+          4. ONLY suggest the specific recipes provided by our database search
+          
+          Keep responses friendly and concise. Focus on understanding:
+          - Dietary restrictions
+          - Flavor preferences
+          - Meal type preferences
+          - Time constraints
+          
+          Remember: You can ONLY suggest recipes that our database returns. Never make up or combine recipes.`,
         },
         ...(messages as ChatCompletionMessageParam[]),
       ]
@@ -177,7 +195,8 @@ export class ChatService {
 
       console.log("Extracted preferences:", preferences)
 
-      if (preferences.length > 0) {
+      // Only include recipe suggestions if we have more than one message exchange
+      if (preferences.length > 0 && messages.length >= 3) {
         // Find matching recipes
         const matchingRecipes = await ChatService.findRecipesByPreferences(
           preferences
@@ -188,12 +207,20 @@ export class ChatService {
         if (matchingRecipes.length > 0) {
           const recipeList = matchingRecipes
             .slice(0, 3)
-            .map((recipe) => `"${recipe.title}"`)
-            .join(", ")
+            .map(
+              (recipe) =>
+                `\n• ${recipe.title}: (https://${DOMAIN_NAME}/recipes/${recipe.id})`
+            )
+            .join("")
 
           return {
-            message: `${aiMessage}\n\nBased on your preferences, you might enjoy these recipes: ${recipeList}`,
+            message: `Based on your preferences, I found these recipes in our database that you might enjoy:${recipeList}\n\nWould you like me to find more recipes or would you like to refine your preferences?`,
             recipeIds: matchingRecipes.slice(0, 3).map((recipe) => recipe.id),
+          }
+        } else {
+          return {
+            message:
+              "I couldn't find any recipes in our database matching your preferences. Would you like to try different preferences or dietary requirements? For example, you could specify a different meal type or flavor preference.",
           }
         }
       }
