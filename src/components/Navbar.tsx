@@ -210,32 +210,32 @@ export default function Navbar() {
               </Typography>
             </MenuItem>
             {!isAuthenticated && (
-              <>
-                <MenuItem onClick={handleCloseNavMenu}>
-                  <Typography
-                    sx={{
-                      color: "secondary.main",
-                      textDecoration: "none",
-                    }}
-                    component={Link}
-                    to="/login"
-                  >
-                    Login
-                  </Typography>
-                </MenuItem>
-                <MenuItem onClick={handleCloseNavMenu}>
-                  <Typography
-                    sx={{
-                      color: "secondary.main",
-                      textDecoration: "none",
-                    }}
-                    component={Link}
-                    to="/register"
-                  >
-                    Register
-                  </Typography>
-                </MenuItem>
-              </>
+              <MenuItem onClick={handleCloseNavMenu}>
+                <Typography
+                  sx={{
+                    color: "secondary.main",
+                    textDecoration: "none",
+                  }}
+                  component={Link}
+                  to="/login"
+                >
+                  Login
+                </Typography>
+              </MenuItem>
+            )}
+            {!isAuthenticated && (
+              <MenuItem onClick={handleCloseNavMenu}>
+                <Typography
+                  sx={{
+                    color: "secondary.main",
+                    textDecoration: "none",
+                  }}
+                  component={Link}
+                  to="/register"
+                >
+                  Register
+                </Typography>
+              </MenuItem>
             )}
           </Menu>
 
