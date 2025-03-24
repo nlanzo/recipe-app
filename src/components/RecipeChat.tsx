@@ -27,6 +27,7 @@ export default function RecipeChat() {
   ])
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [sessionId] = useState(() => crypto.randomUUID())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -64,6 +65,7 @@ export default function RecipeChat() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [...messages, { role: "user", content: userMessage }],
+          sessionId,
         }),
       })
 
@@ -72,7 +74,7 @@ export default function RecipeChat() {
       const data = await response.json()
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.message },
+        { role: "assistant", content: data.content },
       ])
     } catch (error) {
       console.error("Chat error:", error)

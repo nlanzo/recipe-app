@@ -1,12 +1,12 @@
 import { Request, Response } from "express"
-import { ChatService } from "../services/chatService.js"
+import { processChat } from "../services/chatService.js"
 
 export const handleChat = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
-    const { messages } = req.body
+    const { messages, sessionId } = req.body
     console.log("Processing chat messages:", messages)
 
     if (!Array.isArray(messages)) {
@@ -21,7 +21,13 @@ export const handleChat = async (
       return
     }
 
-    const response = await ChatService.processChat(messages)
+    if (!sessionId) {
+      console.error("Missing sessionId")
+      res.status(400).json({ error: "sessionId is required" })
+      return
+    }
+
+    const response = await processChat(sessionId, messages)
     console.log("Chat response:", response)
     res.json(response)
   } catch (error) {

@@ -1,3 +1,5 @@
+import { ChatCompletionMessageParam } from "openai/resources/chat"
+import dotenv from "dotenv"
 import OpenAI from "openai"
 import { db } from "../../db/index.js"
 import {
@@ -7,232 +9,181 @@ import {
 } from "../../db/schema.js"
 import { eq } from "drizzle-orm"
 import { sql } from "drizzle-orm"
-import { ChatCompletionMessageParam } from "openai/resources/chat"
-import dotenv from "dotenv"
 
 dotenv.config()
-const DOMAIN_NAME = process.env.DOMAIN_NAME
-
-// Validate OpenAI API key at startup
-const validateOpenAIKey = () => {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not set in environment variables")
-  }
-  if (!apiKey.startsWith("sk-")) {
-    throw new Error(
-      "OPENAI_API_KEY appears to be invalid - should start with 'sk-'"
-    )
-  }
-  return apiKey
-}
-
-const openai = new OpenAI({
-  apiKey: validateOpenAIKey(),
-})
-
-// Test the OpenAI connection
-const testOpenAIConnection = async () => {
-  try {
-    console.log("Testing OpenAI connection...")
-    const test = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: "test" }],
-      max_tokens: 5,
-    })
-    console.log("Test response:", test)
-    console.log("OpenAI connection test successful")
-    return true
-  } catch (error) {
-    console.error("OpenAI connection test failed:", error)
-    if (error instanceof Error) {
-      console.error("Error details:", error.message)
-      if (error.message.includes("auth")) {
-        throw new Error(
-          "OpenAI authentication failed - please check your API key"
-        )
-      }
-      if (error.message.includes("connect")) {
-        throw new Error(
-          "Could not connect to OpenAI - please check your network connection"
-        )
-      }
-    }
-    throw error
-  }
-}
-
-// Test connection at startup
-testOpenAIConnection().catch(console.error)
 
 interface Message {
-  role: "user" | "assistant" | "system"
+  role: "system" | "user" | "assistant"
   content: string
-}
-
-interface ChatResponse {
-  message: string
-  recipeIds?: number[]
 }
 
 interface RecipeWithIngredients {
   id: number
-  title: string
+  name: string
   description: string | null
   ingredients: Array<{ name: string }>
 }
 
-export class ChatService {
-  private static async getRecipes(): Promise<RecipeWithIngredients[]> {
-    try {
-      return await db
-        .select({
-          id: recipesTable.id,
-          title: recipesTable.title,
-          description: recipesTable.description,
-          ingredients: sql<
-            Array<{ name: string }>
-          >`array_agg(json_build_object('name', ${ingredientsTable.name}))`,
-        })
-        .from(recipesTable)
-        .leftJoin(
-          recipeIngredientsTable,
-          eq(recipeIngredientsTable.recipeId, recipesTable.id)
-        )
-        .leftJoin(
-          ingredientsTable,
-          eq(ingredientsTable.id, recipeIngredientsTable.ingredientId)
-        )
-        .groupBy(recipesTable.id, recipesTable.title, recipesTable.description)
-    } catch (error) {
-      console.error("Error fetching recipes:", error)
-      throw error
-    }
-  }
+interface ChatState {
+  messages: Message[]
+  previouslySuggestedRecipes: number[] // Track recipe IDs that were already suggested
+}
 
-  private static async findRecipesByPreferences(preferences: string[]) {
-    try {
-      const allRecipes = await ChatService.getRecipes()
-      return allRecipes.filter((recipe) => {
-        const searchText = `${recipe.title} ${
-          recipe.description || ""
-        } ${recipe.ingredients.map((i) => i.name).join(" ")}`.toLowerCase()
-        return preferences.some((pref) =>
-          searchText.includes(pref.toLowerCase())
-        )
+const chatStates = new Map<string, ChatState>()
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+})
+
+async function findRecipesByPreferences(
+  preferences: string
+): Promise<RecipeWithIngredients[]> {
+  try {
+    // Convert preferences to search terms
+    const searchTerms = preferences.toLowerCase().split(/\s+/)
+
+    // Build the search query
+    const recipes = await db
+      .select({
+        id: recipesTable.id,
+        name: recipesTable.title,
+        description: recipesTable.description,
+        ingredients: sql<
+          Array<{ name: string }>
+        >`array_agg(json_build_object('name', ${ingredientsTable.name}))`,
       })
-    } catch (error) {
-      console.error("Error finding recipes by preferences:", error)
-      throw error
-    }
+      .from(recipesTable)
+      .leftJoin(
+        recipeIngredientsTable,
+        eq(recipeIngredientsTable.recipeId, recipesTable.id)
+      )
+      .leftJoin(
+        ingredientsTable,
+        eq(ingredientsTable.id, recipeIngredientsTable.ingredientId)
+      )
+      .where(
+        sql`LOWER(${recipesTable.title}) LIKE ANY(${searchTerms.map(
+          (term) => `%${term}%`
+        )}) OR
+            LOWER(${recipesTable.description}) LIKE ANY(${searchTerms.map(
+          (term) => `%${term}%`
+        )}) OR
+            LOWER(${ingredientsTable.name}) LIKE ANY(${searchTerms.map(
+          (term) => `%${term}%`
+        )})`
+      )
+      .groupBy(recipesTable.id, recipesTable.title, recipesTable.description)
+
+    return recipes
+  } catch (error) {
+    console.error("Error finding recipes:", error)
+    return []
+  }
+}
+
+export async function processChat(
+  sessionId: string,
+  messages: Message[]
+): Promise<Message> {
+  // Initialize or get chat state
+  if (!chatStates.has(sessionId)) {
+    chatStates.set(sessionId, {
+      messages: [],
+      previouslySuggestedRecipes: [],
+    })
   }
 
-  private static extractPreferences(content: string): string[] {
-    try {
-      const preferences = content
-        .toLowerCase()
-        .match(
-          /\b(spicy|sweet|savory|vegetarian|vegan|meat|fish|chicken|pasta|rice|quick|healthy|dessert|breakfast|lunch|dinner)\b/g
-        )
-      return preferences || []
-    } catch (error) {
-      console.error("Error extracting preferences:", error)
-      return []
-    }
-  }
+  const state = chatStates.get(sessionId)!
+  state.messages = messages
 
-  public static async processChat(messages: Message[]): Promise<ChatResponse> {
-    try {
-      console.log("Starting chat processing with messages:", messages)
+  // Prepare conversation for OpenAI
+  const conversation: ChatCompletionMessageParam[] = [
+    {
+      role: "system",
+      content: `You are a helpful recipe assistant. Your role is to:
+1. Understand user preferences and dietary restrictions
+2. Suggest ONE recipe at a time from our database that best matches their needs
+3. If they ask for another recipe, suggest a different one that hasn't been suggested before
+4. If no more matching recipes are available, politely explain that and ask if they'd like to try something else
+5. Keep responses concise and focused on the current recipe
+6. Always include the recipe name and a brief description
+7. Never combine or merge recipes
+8. Only suggest recipes that exist in our database
 
-      // Prepare the conversation for OpenAI
-      const conversation: ChatCompletionMessageParam[] = [
-        {
-          role: "system",
-          content: `You are a recipe assistant for ${DOMAIN_NAME}. Your role is to help users find recipes from our existing database only.
-          
-          IMPORTANT RULES:
-          - NEVER suggest or discuss recipes that aren't in our database
-          - NEVER combine or create new recipe variations
-          - ONLY recommend recipes that are returned from our database search
-          - If no matching recipes are found, ask for different preferences or dietary requirements
-          
-          Follow this conversation flow:
-          1. First message: Ask about dietary restrictions (vegetarian, vegan, gluten-free, etc.)
-          2. After learning restrictions: Ask about preferences (meal type, flavors, etc.)
-          3. Once you have enough information: Wait for our database to find matching recipes
-          4. ONLY suggest the specific recipes provided by our database search
-          
-          Keep responses friendly and concise. Focus on understanding:
-          - Dietary restrictions
-          - Flavor preferences
-          - Meal type preferences
-          - Time constraints
-          
-          Remember: You can ONLY suggest recipes that our database returns. Never make up or combine recipes.`,
-        },
-        ...(messages as ChatCompletionMessageParam[]),
-      ]
+Key aspects to focus on:
+- Dietary restrictions (vegetarian, vegan, gluten-free, etc.)
+- Flavor preferences (spicy, mild, sweet, savory)
+- Meal types (breakfast, lunch, dinner, snack)
+- Time constraints
+- Ingredient preferences or restrictions
 
-      console.log("Sending request to OpenAI with conversation:", conversation)
+Remember: Suggest only ONE recipe at a time and keep track of which recipes have been suggested.`,
+    },
+    ...state.messages,
+  ]
 
-      // Get AI response
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: conversation,
-        temperature: 0.7,
-        max_tokens: 200,
-      })
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: conversation,
+      temperature: 0.7,
+      max_tokens: 500,
+    })
 
-      console.log("Received response from OpenAI:", completion)
+    const response = completion.choices[0].message.content
 
-      const aiMessage = completion.choices[0].message.content || ""
+    // If the response contains a recipe suggestion, find matching recipes
+    if (response?.toLowerCase().includes("recipe")) {
+      const recipes = await findRecipesByPreferences(response)
 
-      // Extract preferences from the entire conversation
-      const preferences = messages.flatMap((msg) =>
-        ChatService.extractPreferences(msg.content)
+      // Filter out previously suggested recipes
+      const availableRecipes = recipes.filter(
+        (recipe) => !state.previouslySuggestedRecipes.includes(recipe.id)
       )
 
-      console.log("Extracted preferences:", preferences)
+      if (availableRecipes.length > 0) {
+        // Take the first available recipe
+        const recipe = availableRecipes[0]
+        state.previouslySuggestedRecipes.push(recipe.id)
 
-      // Only include recipe suggestions if we have more than one message exchange
-      if (preferences.length > 0 && messages.length >= 3) {
-        // Find matching recipes
-        const matchingRecipes = await ChatService.findRecipesByPreferences(
-          preferences
-        )
+        // Format the recipe suggestion
+        const recipeResponse = `Here's a recipe that matches your preferences:
 
-        console.log("Found matching recipes:", matchingRecipes)
+${recipe.name}
+${recipe.description || ""}
 
-        if (matchingRecipes.length > 0) {
-          const recipeList = matchingRecipes
-            .slice(0, 3)
-            .map(
-              (recipe) =>
-                `\n• ${recipe.title}: (https://${DOMAIN_NAME}/recipes/${recipe.id})`
-            )
-            .join("")
+Ingredients:
+${recipe.ingredients.map((i) => `- ${i.name}`).join("\n")}
 
-          return {
-            message: `Based on your preferences, I found these recipes in our database that you might enjoy:${recipeList}\n\nWould you like me to find more recipes or would you like to refine your preferences?`,
-            recipeIds: matchingRecipes.slice(0, 3).map((recipe) => recipe.id),
-          }
-        } else {
-          return {
-            message:
-              "I couldn't find any recipes in our database matching your preferences. Would you like to try different preferences or dietary requirements? For example, you could specify a different meal type or flavor preference.",
-          }
+Would you like to see the full recipe details or would you prefer a different suggestion?`
+
+        return {
+          role: "assistant",
+          content: recipeResponse,
+        }
+      } else {
+        // No more matching recipes available
+        return {
+          role: "assistant",
+          content:
+            "I'm sorry, I can't find any additional recipes that match your preferences. Would you like to try something else?",
         }
       }
+    }
 
-      return { message: aiMessage }
-    } catch (error) {
-      console.error("Chat processing error:", error)
-      if (error instanceof Error) {
-        console.error("Error details:", error.message)
-        console.error("Error stack:", error.stack)
-      }
-      throw error
+    // If no recipe suggestion, return the original response
+    return {
+      role: "assistant",
+      content:
+        response ||
+        "I apologize, but I couldn't process your request. Could you please try rephrasing it?",
+    }
+  } catch (error) {
+    console.error("Error processing chat:", error)
+    return {
+      role: "assistant",
+      content:
+        "I apologize, but I encountered an error processing your request. Please try again.",
     }
   }
 }
