@@ -68,7 +68,15 @@ for (const envVar of requiredEnvVars) {
   }
 }
 
-app.use(cors())
+// Configure CORS
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    exposedHeaders: ["Content-Length", "X-Foo", "X-Bar"],
+  })
+)
+
 app.use(express.json())
 
 // Create servers
@@ -921,6 +929,23 @@ app.post("/api/chat", async (req: Request, res: Response) => {
 // Catch-all route to serve index.html for client-side routing
 app.get("*", (_req, res) => {
   res.sendFile("index.html", { root: "dist" })
+})
+
+// Enable detailed error logging
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error("Error:", {
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+  })
+  res.status(500).json({
+    error: "Internal Server Error",
+    message: err.message,
+    path: req.path,
+  })
+  next(err) // Propagate error to Express's default error handler
 })
 
 // Start the servers

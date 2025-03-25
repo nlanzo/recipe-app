@@ -69,20 +69,41 @@ export default function RecipeChat() {
         }),
       })
 
-      if (!response.ok) throw new Error("Failed to get response")
+      console.log("Received response:", {
+        status: response.status,
+        statusText: response.statusText,
+      })
 
-      const data = await response.json()
+      const responseData = await response.json()
+      console.log("Response data:", responseData)
+
+      if (!response.ok) {
+        console.error("Chat API error:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: responseData,
+        })
+        throw new Error(responseData.error || "Failed to get response")
+      }
+
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.content },
+        { role: "assistant", content: responseData.content },
       ])
     } catch (error) {
-      console.error("Chat error:", error)
+      console.error("Chat error details:", {
+        name: error instanceof Error ? error.name : "Unknown",
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      })
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "Sorry, I encountered an error. Please try again.",
+          content:
+            error instanceof Error
+              ? error.message
+              : "Sorry, I encountered an error. Please try again.",
         },
       ])
     } finally {

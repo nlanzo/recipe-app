@@ -7,7 +7,9 @@ export const handleChat = async (
 ): Promise<void> => {
   try {
     const { messages, sessionId } = req.body
-    console.log("Processing chat messages:", messages)
+    console.log("Chat request received:")
+    console.log("Session ID:", sessionId)
+    console.log("Latest message:", messages[messages.length - 1])
 
     if (!Array.isArray(messages)) {
       console.error("Invalid messages format:", messages)
@@ -27,8 +29,17 @@ export const handleChat = async (
       return
     }
 
+    console.log("Processing chat with OpenAI...")
     const response = await processChat(sessionId, messages)
-    console.log("Chat response:", response)
+    console.log("OpenAI response:", response.content)
+
+    // Log if a recipe was found or not
+    if (response.content.includes("I'm sorry")) {
+      console.log("No matching recipes found")
+    } else if (response.content.includes("Here's a recipe")) {
+      console.log("Recipe suggestion provided")
+    }
+
     res.json(response)
   } catch (error) {
     console.error("Chat controller error:", error)
