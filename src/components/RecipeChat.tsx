@@ -11,6 +11,7 @@ import {
 import SendIcon from "@mui/icons-material/Send"
 import SmartToyIcon from "@mui/icons-material/SmartToy"
 import PersonIcon from "@mui/icons-material/Person"
+import ReactMarkdown from "react-markdown"
 
 interface Message {
   role: "user" | "assistant"
@@ -167,7 +168,7 @@ export default function RecipeChat() {
                 color: message.role === "user" ? "black" : "text.primary",
               }}
             >
-              <Typography>{message.content}</Typography>
+              <ReactMarkdown>{message.content}</ReactMarkdown>
             </Paper>
             {message.role === "user" && (
               <Avatar sx={{ bgcolor: "secondary.main" }}>

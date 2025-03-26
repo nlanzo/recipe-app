@@ -1,6 +1,4 @@
-import { ChatCompletionMessageParam } from "openai/resources/chat"
 import dotenv from "dotenv"
-import OpenAI from "openai"
 import { db } from "../../db/index.js"
 import {
   recipesTable,
@@ -30,10 +28,6 @@ interface ChatState {
 }
 
 const chatStates = new Map<string, ChatState>()
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
 
 async function findRecipesByPreferences(
   preferences: string
@@ -102,6 +96,47 @@ async function findRecipesByPreferences(
           "make",
           "need",
           "looking",
+          "how",
+          "about",
+          "trying",
+          "classic",
+          "recipe",
+          "perfect",
+          "great",
+          "love",
+          "favorite",
+          "simple",
+          "flavorful",
+          "need",
+          "will",
+          "need",
+          "youll",
+          "rub",
+          "roast",
+          "preheat",
+          "preheated",
+          "oven",
+          "until",
+          "about",
+          "minutes",
+          "dish",
+          "perfect",
+          "pairs",
+          "well",
+          "sides",
+          "like",
+          "would",
+          "give",
+          "this",
+          "try",
+          "looking",
+          "something",
+          "different",
+          "dont",
+          "have",
+          "any",
+          "restrictions",
+          "preferences",
         ])
 
         // Keep terms that are either:
@@ -143,7 +178,7 @@ async function findRecipesByPreferences(
     const whereClause = sql.join(searchConditions, sql` OR `)
     console.log("Search terms count:", searchTerms.length)
 
-    // Build the search query with ranking
+    // Build the search query with ranking using a subquery
     const recipes = await db
       .select({
         id: recipesTable.id,
@@ -151,20 +186,6 @@ async function findRecipesByPreferences(
         description: recipesTable.description,
         ingredients: sql<Array<{ name: string }>>`
           array_agg(DISTINCT jsonb_build_object('name', ${ingredientsTable.name}))
-        `,
-        rank: sql`
-          (CASE 
-            WHEN LOWER(${recipesTable.title}) LIKE ${
-          searchTerms[0] + "%"
-        } THEN 3
-            WHEN LOWER(${recipesTable.title}) LIKE ${
-          "%" + searchTerms[0] + "%"
-        } THEN 2
-            WHEN LOWER(${recipesTable.description}) LIKE ${
-          "%" + searchTerms[0] + "%"
-        } THEN 1
-            ELSE 0
-          END)
         `,
       })
       .from(recipesTable)
@@ -178,7 +199,20 @@ async function findRecipesByPreferences(
       )
       .where(whereClause)
       .groupBy(recipesTable.id, recipesTable.title, recipesTable.description)
-      .orderBy(sql`rank DESC`)
+      .orderBy(
+        sql`
+        CASE 
+          WHEN LOWER(${recipesTable.title}) LIKE ${searchTerms[0] + "%"} THEN 3
+          WHEN LOWER(${recipesTable.title}) LIKE ${
+          "%" + searchTerms[0] + "%"
+        } THEN 2
+          WHEN LOWER(${recipesTable.description}) LIKE ${
+          "%" + searchTerms[0] + "%"
+        } THEN 1
+          ELSE 0
+        END DESC
+      `
+      )
       .limit(10)
 
     console.log("Search results:", {
@@ -188,7 +222,6 @@ async function findRecipesByPreferences(
       topResults: recipes.map((r) => ({
         id: r.id,
         name: r.name,
-        rank: r.rank,
       })),
     })
 
@@ -229,59 +262,10 @@ export async function processChat(
       .find((m) => m.role === "user")
     console.log("Last user message:", lastUserMessage?.content)
 
-    // Prepare conversation for OpenAI
-    console.log("Preparing OpenAI conversation...")
-    const conversation: ChatCompletionMessageParam[] = [
-      {
-        role: "system",
-        content: `You are a helpful recipe assistant. Your role is to:
-1. Understand user preferences and dietary restrictions
-2. Suggest ONE recipe at a time from our database that best matches their needs
-3. If they ask for another recipe, suggest a different one that hasn't been suggested before
-4. If no more matching recipes are available, politely explain that and ask if they'd like to try something else
-5. Keep responses concise and focused on the current recipe
-6. Always include the recipe name and a brief description
-7. Never combine or merge recipes
-8. Only suggest recipes that exist in our database
-
-Key aspects to focus on:
-- Dietary restrictions (vegetarian, vegan, gluten-free, etc.)
-- Flavor preferences (spicy, mild, sweet, savory)
-- Meal types (breakfast, lunch, dinner, snack)
-- Time constraints
-- Ingredient preferences or restrictions
-
-Remember: Suggest only ONE recipe at a time and keep track of which recipes have been suggested.
-
-When suggesting a recipe, format your response to clearly indicate the recipe suggestion by starting with "RECIPE_SUGGESTION:" followed by your description.`,
-      },
-      ...state.messages,
-    ]
-
-    console.log("Calling OpenAI API...")
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4-turbo-preview",
-      messages: conversation,
-      temperature: 0.7,
-      max_tokens: 500,
-    })
-
-    console.log("OpenAI API response received")
-    const response = completion.choices[0].message.content
-
-    // Check for recipe suggestion with improved detection
-    if (response?.includes("RECIPE_SUGGESTION:")) {
-      console.log("OpenAI suggested a recipe, searching database...")
-
-      // Extract the suggestion part
-      const suggestion = response.split("RECIPE_SUGGESTION:")[1].trim()
-      console.log("Extracted suggestion:", suggestion)
-
-      // Combine with the last user message for better context
-      const searchQuery = `${lastUserMessage?.content || ""} ${suggestion}`
-      console.log("Combined search query:", searchQuery)
-
-      const recipes = await findRecipesByPreferences(searchQuery)
+    // First, try to find recipes based on the user's message
+    if (lastUserMessage?.content) {
+      console.log("Searching database for recipes...")
+      const recipes = await findRecipesByPreferences(lastUserMessage.content)
       console.log(`Found ${recipes.length} total recipes`)
 
       // Filter out previously suggested recipes
@@ -302,38 +286,25 @@ When suggesting a recipe, format your response to clearly indicate the recipe su
           ingredientCount: recipe.ingredients.length,
         })
 
-        // Format the recipe suggestion
+        // Format the recipe suggestion with a link
         const recipeResponse = `I found a great recipe that matches your preferences:
 
-${recipe.name}
+[${recipe.name}](https://chopchoprecipes.com/recipes/${recipe.id})
 ${recipe.description || ""}
 
-Ingredients:
-${recipe.ingredients.map((i) => `- ${i.name}`).join("\n")}
-
-Would you like to see the full recipe details or would you prefer a different suggestion?`
+Would you like to see more details about this recipe, or would you prefer a different suggestion?`
 
         return {
           role: "assistant",
           content: recipeResponse,
         }
-      } else {
-        console.log("No available recipes found")
-        return {
-          role: "assistant",
-          content:
-            "I've looked through our recipes, but I can't find any additional ones that match your preferences. Would you like to try with different criteria? For example, you could specify a different main ingredient or cooking style.",
-        }
       }
     }
 
-    // If no recipe suggestion, return the original response
-    console.log("No recipe suggestion in OpenAI response")
+    // If no recipes were found, suggest browsing the Explore page
     return {
       role: "assistant",
-      content:
-        response ||
-        "I apologize, but I couldn't process your request. Could you please try rephrasing it?",
+      content: `I couldn't find any recipes matching your preferences in our database. You can browse all our recipes on our [Explore Recipes](https://chopchoprecipes.com/recipes) page. Would you like me to help you find a different recipe?`,
     }
   } catch (error) {
     console.error("Error in processChat:", {
@@ -345,7 +316,7 @@ Would you like to see the full recipe details or would you prefer a different su
     return {
       role: "assistant",
       content:
-        "I apologize, but I encountered an error while searching for recipes. Please try describing what you're looking for in a different way.",
+        "I apologize, but I encountered an error while searching for recipes. You can browse all our recipes on our [Explore Recipes](https://chopchoprecipes.com/recipes) page. Would you like me to help you find a different recipe?",
     }
   }
 }
