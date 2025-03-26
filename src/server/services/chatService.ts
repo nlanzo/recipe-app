@@ -41,19 +41,86 @@ async function findRecipesByPreferences(
   try {
     console.log("Starting recipe search with preferences:", preferences)
 
-    // Extract key terms and clean them while preserving important words
+    // Extract key food terms using a more focused approach
     const searchTerms = preferences
       .toLowerCase()
-      .split(/[,.]?\s+/) // Split on spaces and optional commas/periods
+      .split(/[,.]?\s+/)
       .map((term) => term.trim())
+      // Filter out common words and keep only relevant food terms
       .filter((term) => {
-        // Keep important cooking terms even if they're short
-        const importantTerms = ["pie", "dip", "raw", "bbq", "wok"]
-        return term.length > 2 || importantTerms.includes(term)
+        const commonWords = new Set([
+          "a",
+          "an",
+          "the",
+          "and",
+          "or",
+          "but",
+          "in",
+          "on",
+          "at",
+          "to",
+          "for",
+          "with",
+          "without",
+          "is",
+          "are",
+          "was",
+          "were",
+          "be",
+          "been",
+          "being",
+          "have",
+          "has",
+          "had",
+          "do",
+          "does",
+          "did",
+          "will",
+          "would",
+          "should",
+          "could",
+          "can",
+          "may",
+          "might",
+          "must",
+          "shall",
+          "this",
+          "that",
+          "these",
+          "those",
+          "i",
+          "you",
+          "he",
+          "she",
+          "it",
+          "we",
+          "they",
+          "good",
+          "like",
+          "want",
+          "try",
+          "make",
+          "need",
+          "looking",
+        ])
+
+        // Keep terms that are either:
+        // 1. Important short food terms
+        const importantTerms = new Set([
+          "pie",
+          "dip",
+          "raw",
+          "bbq",
+          "wok",
+          "stir",
+        ])
+        // 2. Not in common words list and at least 3 characters
+        return (
+          importantTerms.has(term) ||
+          (!commonWords.has(term) && term.length >= 3)
+        )
       })
-      // Clean terms while preserving hyphens and apostrophes
-      .map((term) => term.replace(/[^a-z0-9\-']/g, ""))
-      .filter(Boolean) // Remove empty strings
+      .slice(0, 3) // Only use the first 3 relevant terms to keep search focused
 
     console.log("Processed search terms:", searchTerms)
 
@@ -62,24 +129,19 @@ async function findRecipesByPreferences(
       return []
     }
 
-    // Build the search conditions with improved matching
+    // Build simpler, more focused search conditions
     const searchConditions = searchTerms.map((term) => {
       console.log("Building search condition for term:", term)
       return sql`(
         LOWER(${recipesTable.title}) LIKE ${"%" + term + "%"} OR 
         LOWER(${recipesTable.description}) LIKE ${"%" + term + "%"} OR 
-        LOWER(${ingredientsTable.name}) LIKE ${"%" + term + "%"} OR
-        LOWER(${recipesTable.title}) SIMILAR TO ${
-        "%" + term.split("").join("%") + "%"
-      } OR
-        ${recipesTable.title} % ${term}
+        LOWER(${ingredientsTable.name}) LIKE ${"%" + term + "%"}
       )`
     })
 
     // Combine conditions - require at least one match
     const whereClause = sql.join(searchConditions, sql` OR `)
     console.log("Search terms count:", searchTerms.length)
-    console.log("SQL where clause structure:", whereClause.toString())
 
     // Build the search query with ranking
     const recipes = await db
@@ -121,8 +183,8 @@ async function findRecipesByPreferences(
 
     console.log("Search results:", {
       termCount: searchTerms.length,
-      recipeCount: recipes.length,
       searchTerms,
+      recipeCount: recipes.length,
       topResults: recipes.map((r) => ({
         id: r.id,
         name: r.name,
