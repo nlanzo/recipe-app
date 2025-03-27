@@ -7,6 +7,7 @@ import {
   Typography,
   Avatar,
   Stack,
+  CircularProgress,
 } from "@mui/material"
 import SendIcon from "@mui/icons-material/Send"
 import SmartToyIcon from "@mui/icons-material/SmartToy"
@@ -166,9 +167,33 @@ export default function RecipeChat() {
                 backgroundColor:
                   message.role === "user" ? "primary.main" : "background.paper",
                 color: message.role === "user" ? "black" : "text.primary",
+                "& .markdown-content": {
+                  "& p": {
+                    margin: "0.5em 0",
+                    lineHeight: 1.6,
+                    fontSize: "1rem",
+                    fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+                  },
+                  "& a": {
+                    color: message.role === "user" ? "white" : "primary.main",
+                    textDecoration: "none",
+                    "&:hover": {
+                      textDecoration: "underline",
+                    },
+                  },
+                  "& ul, & ol": {
+                    margin: "0.5em 0",
+                    paddingLeft: "1.5em",
+                    "& li": {
+                      margin: "0.25em 0",
+                    },
+                  },
+                },
               }}
             >
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <div className="markdown-content">
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              </div>
             </Paper>
             {message.role === "user" && (
               <Avatar sx={{ bgcolor: "secondary.main" }}>
@@ -209,8 +234,21 @@ export default function RecipeChat() {
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             type="submit"
+            sx={{
+              position: "relative",
+              "& .MuiCircularProgress-root": {
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+              },
+            }}
           >
-            <SendIcon />
+            {isLoading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              <SendIcon />
+            )}
           </IconButton>
         </Stack>
       </Box>
