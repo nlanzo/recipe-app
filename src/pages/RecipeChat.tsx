@@ -13,8 +13,8 @@ export default function RecipeChatPage() {
         Recipe Assistant
       </Typography>
       <Typography variant="body1" sx={{ mb: 4 }}>
-        Chat with our AI assistant to discover recipes that match your
-        preferences and dietary requirements.
+        Chat with our AI-powered assistant to discover recipes that match your
+        preferences.
       </Typography>
       <RecipeChat />
     </Container>
