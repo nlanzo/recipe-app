@@ -427,7 +427,9 @@ async function findRecipesByPreferences(
   }
 }
 
-async function isRequestingAnotherRecipe(message: string): Promise<boolean> {
+async function isRequestingAnotherRecipe(
+  message: string
+): Promise<"more" | "different" | "no"> {
   try {
     console.log("Checking if user is requesting another recipe:", message)
 
@@ -436,16 +438,27 @@ async function isRequestingAnotherRecipe(message: string): Promise<boolean> {
       messages: [
         {
           role: "system",
-          content: `You are a recipe assistant. Determine if the user is asking to see another/different recipe or wants more recipe suggestions.
-          Respond with ONLY "yes" or "no".
+          content: `You are a recipe assistant. Determine if the user wants:
+          1. More similar recipes ("more")
+          2. Different types of recipes ("different")
+          3. None of the above ("no")
+          
+          IMPORTANT: Initial food preferences or requests should be "no", not "different".
+          
+          Respond with ONLY "more", "different", or "no".
           
           Examples:
-          User: "show me another one" -> "yes"
-          User: "I want to see more recipes" -> "yes"
-          User: "that looks good, what else do you have?" -> "yes"
+          User: "show me another one" -> "more"
+          User: "I want to see more recipes like this" -> "more"
+          User: "that looks good, what else do you have?" -> "more"
+          User: "I want something different" -> "different"
+          User: "show me something else instead" -> "different"
           User: "no thanks" -> "no"
-          User: "I don't like that recipe" -> "no"
-          User: "I like spicy food" -> "no"`,
+          User: "I don't like that recipe" -> "different"
+          User: "I like spicy food" -> "no"
+          User: "I want sandwiches" -> "no"
+          User: "show me pasta recipes" -> "no"
+          User: "I'm looking for vegetarian dishes" -> "no"`,
         },
         {
           role: "user",
@@ -457,17 +470,20 @@ async function isRequestingAnotherRecipe(message: string): Promise<boolean> {
     })
 
     const answer = response.choices[0]?.message?.content?.toLowerCase().trim()
-    console.log(
-      "OpenAI determined user is requesting another recipe:",
-      answer === "yes"
-    )
-    return answer === "yes"
+    console.log("OpenAI determined user request type:", answer)
+
+    return answer as "more" | "different" | "no"
   } catch (error) {
     console.error("Error checking if user is requesting another recipe:", error)
     // Fall back to pattern matching if OpenAI fails
-    const showAnotherPattern =
-      /\b(show|give|get|want|see|try)\b.*\b(another|more|different|next)\b.*\b(recipe|one)\b/i
-    return showAnotherPattern.test(message.toLowerCase())
+    const showMorePattern =
+      /\b(show|give|get|want|see|try)\b.*\b(another|more)\b.*\b(recipe|one)\b/i
+    const showDifferentPattern =
+      /\b(something|anything)\b.*\b(else|different)\b/i
+
+    if (showMorePattern.test(message.toLowerCase())) return "more"
+    if (showDifferentPattern.test(message.toLowerCase())) return "different"
+    return "no"
   }
 }
 
@@ -508,12 +524,12 @@ export async function processChat(
     }
 
     // Check if user is asking for another recipe using OpenAI
-    const isAskingForAnother = await isRequestingAnotherRecipe(
-      lastUserMessage.content
-    )
+    const requestType = await isRequestingAnotherRecipe(lastUserMessage.content)
 
-    if (isAskingForAnother && state.lastSearchResults.length > 0) {
-      console.log("User is asking for another recipe from previous search")
+    if (requestType === "more" && state.lastSearchResults.length > 0) {
+      console.log(
+        "User is asking for another similar recipe from previous search"
+      )
 
       // Filter out previously suggested recipes
       const availableRecipes = state.lastSearchResults.filter(
@@ -534,10 +550,10 @@ export async function processChat(
         })
 
         // Format the recipe suggestion with a link
-        const recipeResponse = `Here's another recipe you might enjoy:\n
+        const recipeResponse = `Here's another recipe similar to what you're looking for:
 
-[${recipe.name}](https://chopchoprecipes.com/recipes/${recipe.id})\n
-${recipe.description || ""}\n
+[${recipe.name}](https://chopchoprecipes.com/recipes/${recipe.id})
+${recipe.description || ""}
 
 Would you like to see more recipes like this, something different, or would you like to [Explore all Recipes](https://chopchoprecipes.com/recipes)?`
 
@@ -548,12 +564,18 @@ Would you like to see more recipes like this, something different, or would you 
       } else {
         return {
           role: "assistant",
-          content: `I don't have any more recipes matching your previous search for ${state.lastSearchQuery}. Would you like to try something different? You can also browse all our recipes on our [Explore Recipes](https://chopchoprecipes.com/recipes) page.`,
+          content: `I don't have any more recipes similar to your previous search. Would you like to try something different? Tell me what kind of recipe you're interested in.`,
         }
+      }
+    } else if (requestType === "different") {
+      return {
+        role: "assistant",
+        content:
+          "I'd be happy to help you find a different type of recipe. What kind of food are you in the mood for?",
       }
     }
 
-    // If not asking for another recipe, perform a new search
+    // If not asking for another recipe or asking for something different, perform a new search
     console.log("Searching database for recipes...")
     const recipes = await findRecipesByPreferences(lastUserMessage.content)
     console.log(`Found ${recipes.length} total recipes`)
