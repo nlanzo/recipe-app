@@ -475,14 +475,11 @@ export async function processChat(
         })
 
         // Format the recipe suggestion with a link
-        const recipeResponse = `Based on your interest in ${
-          lastUserMessage.content
-        }, I found a great recipe that you might enjoy:
+        const recipeResponse = `I found a great recipe that you might enjoy:
+[${recipe.name}](https://chopchoprecipes.com/recipes/${recipe.id})\n
+${recipe.description || ""}\n
 
-[${recipe.name}](https://chopchoprecipes.com/recipes/${recipe.id})
-${recipe.description || ""}
-
-Would you like to see more recipes like this, or would you prefer something different?`
+Would you like to see more recipes like this, something different, or would you like to [Explore all Recipes](https://chopchoprecipes.com/recipes)?`
 
         return {
           role: "assistant",
@@ -494,7 +491,7 @@ Would you like to see more recipes like this, or would you prefer something diff
     // If no recipes were found, suggest browsing the Explore page
     return {
       role: "assistant",
-      content: `I couldn't find any recipes matching your preferences in our database. You can browse all our recipes on our [Explore Recipes](https://chopchoprecipes.com/recipes) page. Could you tell me more about what kinds of foods you enjoy?`,
+      content: `I couldn't find any recipes matching your preferences. Could you tell me more about what kinds of foods you enjoy?\nYou can also browse all our recipes on our [Explore Recipes](https://chopchoprecipes.com/recipes) page. `,
     }
   } catch (error) {
     console.error("Error in processChat:", {
