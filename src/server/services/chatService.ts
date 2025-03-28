@@ -82,6 +82,41 @@ const cuisineTypes = new Set([
   "middle eastern",
 ])
 
+// Common plural endings and their singular forms
+const pluralEndings = new Map<string, string>([
+  ["ies", "y"],
+  ["es", ""],
+  ["s", ""],
+])
+
+function convertToSingular(word: string): string {
+  // Convert to lowercase for consistent handling
+  word = word.toLowerCase()
+
+  // Check each plural ending
+  for (const [plural, singular] of pluralEndings) {
+    if (word.endsWith(plural)) {
+      // Special case for words ending in 'ies'
+      if (plural === "ies") {
+        // Only convert if the word isn't a special case
+        const specialCases = new Set(["series", "species"])
+        if (!specialCases.has(word)) {
+          return word.slice(0, -plural.length) + singular
+        }
+      } else {
+        // For 'es' and 's' endings
+        const baseWord = word.slice(0, -plural.length)
+        // Don't convert if removing 's' would make the word too short
+        if (baseWord.length >= 2) {
+          return baseWord
+        }
+      }
+    }
+  }
+
+  return word
+}
+
 async function extractKeywordsWithAI(userInput: string): Promise<string[]> {
   try {
     console.log("Extracting keywords from user input with OpenAI:", userInput)
@@ -93,9 +128,10 @@ async function extractKeywordsWithAI(userInput: string): Promise<string[]> {
           role: "system",
           content: `You are a culinary expert. Extract up to 10 food-related keywords from the user's input. 
           Focus on ingredients, cuisines, dishes, and cooking methods. 
+          IMPORTANT: Return ONLY singular forms of words (e.g., "sandwich" not "sandwiches").
           Respond ONLY with a comma-separated list of lowercase keywords, no explanations.
-          Example input: "I love spicy Asian food and seafood"
-          Example response: "spicy, asian, seafood, stir-fry, noodles, curry"`,
+          Example input: "I love spicy Asian foods and seafoods"
+          Example response: "spicy, asian, food, seafood, stir-fry, noodle, curry"`,
         },
         {
           role: "user",
@@ -110,7 +146,9 @@ async function extractKeywordsWithAI(userInput: string): Promise<string[]> {
       response.choices[0]?.message?.content
         ?.split(",")
         .map((keyword) => keyword.trim().toLowerCase())
-        .filter((keyword) => keyword.length > 0) || []
+        .filter((keyword) => keyword.length > 0)
+        // Convert any remaining plurals to singular
+        .map(convertToSingular) || []
 
     console.log("OpenAI extracted keywords:", keywords)
     return keywords
@@ -311,12 +349,18 @@ async function findRecipesByPreferences(
       return []
     }
 
-    // Build search conditions for each term
+    // Build search conditions for each term, including both singular and plural forms
     const searchConditions = searchTerms.map((term) => {
+      const pluralTerm = term.endsWith("y")
+        ? term.slice(0, -1) + "ies"
+        : term + "s"
       return sql`(
         LOWER(${recipesTable.title}) LIKE ${"%" + term + "%"} OR 
+        LOWER(${recipesTable.title}) LIKE ${"%" + pluralTerm + "%"} OR
         LOWER(${recipesTable.description}) LIKE ${"%" + term + "%"} OR 
-        LOWER(${ingredientsTable.name}) LIKE ${"%" + term + "%"}
+        LOWER(${recipesTable.description}) LIKE ${"%" + pluralTerm + "%"} OR
+        LOWER(${ingredientsTable.name}) LIKE ${"%" + term + "%"} OR
+        LOWER(${ingredientsTable.name}) LIKE ${"%" + pluralTerm + "%"}
       )`
     })
 
