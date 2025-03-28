@@ -30,6 +30,8 @@ interface RecipeWithIngredients {
 interface ChatState {
   messages: Message[]
   previouslySuggestedRecipes: number[] // Track recipe IDs that were already suggested
+  lastSearchResults: RecipeWithIngredients[] // Store the last search results
+  lastSearchQuery: string // Store the last search query
 }
 
 const chatStates = new Map<string, ChatState>()
@@ -425,6 +427,50 @@ async function findRecipesByPreferences(
   }
 }
 
+async function isRequestingAnotherRecipe(message: string): Promise<boolean> {
+  try {
+    console.log("Checking if user is requesting another recipe:", message)
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: `You are a recipe assistant. Determine if the user is asking to see another/different recipe or wants more recipe suggestions.
+          Respond with ONLY "yes" or "no".
+          
+          Examples:
+          User: "show me another one" -> "yes"
+          User: "I want to see more recipes" -> "yes"
+          User: "that looks good, what else do you have?" -> "yes"
+          User: "no thanks" -> "no"
+          User: "I don't like that recipe" -> "no"
+          User: "I like spicy food" -> "no"`,
+        },
+        {
+          role: "user",
+          content: message,
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 10,
+    })
+
+    const answer = response.choices[0]?.message?.content?.toLowerCase().trim()
+    console.log(
+      "OpenAI determined user is requesting another recipe:",
+      answer === "yes"
+    )
+    return answer === "yes"
+  } catch (error) {
+    console.error("Error checking if user is requesting another recipe:", error)
+    // Fall back to pattern matching if OpenAI fails
+    const showAnotherPattern =
+      /\b(show|give|get|want|see|try)\b.*\b(another|more|different|next)\b.*\b(recipe|one)\b/i
+    return showAnotherPattern.test(message.toLowerCase())
+  }
+}
+
 export async function processChat(
   sessionId: string,
   messages: Message[]
@@ -438,6 +484,8 @@ export async function processChat(
       chatStates.set(sessionId, {
         messages: [],
         previouslySuggestedRecipes: [],
+        lastSearchResults: [],
+        lastSearchQuery: "",
       })
     }
 
@@ -451,13 +499,24 @@ export async function processChat(
       .find((m) => m.role === "user")
     console.log("Last user message:", lastUserMessage?.content)
 
-    if (lastUserMessage?.content) {
-      console.log("Searching database for recipes...")
-      const recipes = await findRecipesByPreferences(lastUserMessage.content)
-      console.log(`Found ${recipes.length} total recipes`)
+    if (!lastUserMessage?.content) {
+      return {
+        role: "assistant",
+        content:
+          "I couldn't understand your message. Could you tell me what kinds of foods you enjoy?",
+      }
+    }
+
+    // Check if user is asking for another recipe using OpenAI
+    const isAskingForAnother = await isRequestingAnotherRecipe(
+      lastUserMessage.content
+    )
+
+    if (isAskingForAnother && state.lastSearchResults.length > 0) {
+      console.log("User is asking for another recipe from previous search")
 
       // Filter out previously suggested recipes
-      const availableRecipes = recipes.filter(
+      const availableRecipes = state.lastSearchResults.filter(
         (recipe) => !state.previouslySuggestedRecipes.includes(recipe.id)
       )
       console.log(
@@ -475,7 +534,8 @@ export async function processChat(
         })
 
         // Format the recipe suggestion with a link
-        const recipeResponse = `I found a great recipe that you might enjoy:
+        const recipeResponse = `Here's another recipe you might enjoy:\n
+
 [${recipe.name}](https://chopchoprecipes.com/recipes/${recipe.id})\n
 ${recipe.description || ""}\n
 
@@ -485,13 +545,59 @@ Would you like to see more recipes like this, something different, or would you 
           role: "assistant",
           content: recipeResponse,
         }
+      } else {
+        return {
+          role: "assistant",
+          content: `I don't have any more recipes matching your previous search for ${state.lastSearchQuery}. Would you like to try something different? You can also browse all our recipes on our [Explore Recipes](https://chopchoprecipes.com/recipes) page.`,
+        }
+      }
+    }
+
+    // If not asking for another recipe, perform a new search
+    console.log("Searching database for recipes...")
+    const recipes = await findRecipesByPreferences(lastUserMessage.content)
+    console.log(`Found ${recipes.length} total recipes`)
+
+    // Store the search results and query for later use
+    state.lastSearchResults = recipes
+    state.lastSearchQuery = lastUserMessage.content
+
+    // Filter out previously suggested recipes
+    const availableRecipes = recipes.filter(
+      (recipe) => !state.previouslySuggestedRecipes.includes(recipe.id)
+    )
+    console.log(
+      `${availableRecipes.length} recipes available after filtering previously suggested`
+    )
+
+    if (availableRecipes.length > 0) {
+      // Take the first available recipe
+      const recipe = availableRecipes[0]
+      state.previouslySuggestedRecipes.push(recipe.id)
+      console.log("Selected recipe:", {
+        id: recipe.id,
+        name: recipe.name,
+        ingredientCount: recipe.ingredients.length,
+      })
+
+      // Format the recipe suggestion with a link
+      const recipeResponse = `I found a great recipe that you might enjoy:
+
+[${recipe.name}](https://chopchoprecipes.com/recipes/${recipe.id})
+${recipe.description || ""}
+
+Would you like to see more recipes like this, something different, or would you like to [Explore all Recipes](https://chopchoprecipes.com/recipes)?`
+
+      return {
+        role: "assistant",
+        content: recipeResponse,
       }
     }
 
     // If no recipes were found, suggest browsing the Explore page
     return {
       role: "assistant",
-      content: `I couldn't find any recipes matching your preferences. Could you tell me more about what kinds of foods you enjoy?\nYou can also browse all our recipes on our [Explore Recipes](https://chopchoprecipes.com/recipes) page. `,
+      content: `I couldn't find any recipes matching your preferences. Could you tell me more about what kinds of foods you enjoy?\nYou can also browse all our recipes on our [Explore Recipes](https://chopchoprecipes.com/recipes) page.`,
     }
   } catch (error) {
     console.error("Error in processChat:", {
