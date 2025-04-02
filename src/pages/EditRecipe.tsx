@@ -216,7 +216,16 @@ export default function EditRecipe() {
               {error}
             </Typography>
           )}
-          <Typography variant="h4" gutterBottom>
+          <Typography
+            component="h2"
+            sx={{
+              fontSize: { xs: "2rem", md: "3rem" },
+              fontWeight: "bold",
+              textAlign: "center",
+              marginBottom: 4,
+              color: "secondary.main",
+            }}
+          >
             Edit Recipe
           </Typography>
 

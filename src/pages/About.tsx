@@ -3,7 +3,16 @@ import { Box, Typography } from "@mui/material"
 export default function About() {
   return (
     <Box component="div" sx={{ maxWidth: "xl", mx: "auto", mt: 5 }}>
-      <Typography variant="h2" sx={{ mb: 4, fontWeight: 500 }}>
+      <Typography
+        component="h2"
+        sx={{
+          fontSize: { xs: "2rem", md: "3rem" },
+          fontWeight: "bold",
+          textAlign: "center",
+          marginBottom: 4,
+          color: "secondary.main",
+        }}
+      >
         About chopchoprecipes.com
       </Typography>
 

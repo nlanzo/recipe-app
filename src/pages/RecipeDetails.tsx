@@ -66,7 +66,16 @@ export default function RecipeDetails() {
             <Typography color="error">{data.error}</Typography>
           ) : null}
           {/* Recipe Title */}
-          <Typography variant="h4" gutterBottom>
+          <Typography
+            component="h4"
+            sx={{
+              fontSize: { xs: "2rem", md: "3rem" },
+              fontWeight: "bold",
+              textAlign: "center",
+              marginBottom: 4,
+              color: "secondary.main",
+            }}
+          >
             {data.data?.name}
           </Typography>
 

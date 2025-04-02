@@ -50,7 +50,16 @@ export default function Account() {
 
   return (
     <Box sx={{ maxWidth: "600px", mx: "auto", p: 4 }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography
+        component="h4"
+        sx={{
+          fontSize: { xs: "2rem", md: "3rem" },
+          fontWeight: "bold",
+          textAlign: "center",
+          marginBottom: 4,
+          color: "secondary.main",
+        }}
+      >
         Account Settings
       </Typography>
 

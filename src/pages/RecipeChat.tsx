@@ -5,10 +5,14 @@ export default function RecipeChatPage() {
   return (
     <Container maxWidth="lg">
       <Typography
-        variant="h4"
-        component="h1"
-        gutterBottom
-        sx={{ mt: 4, mb: 3 }}
+        component="h4"
+        sx={{
+          fontSize: { xs: "2rem", md: "3rem" },
+          fontWeight: "bold",
+          textAlign: "center",
+          marginBottom: 4,
+          color: "secondary.main",
+        }}
       >
         Recipe Assistant
       </Typography>

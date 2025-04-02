@@ -54,7 +54,16 @@ export default function Register() {
   return (
     <Container maxWidth="sm">
       <Paper elevation={3} sx={{ p: 4, mt: 8 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
+        <Typography
+          component="h4"
+          sx={{
+            fontSize: { xs: "2rem", md: "3rem" },
+            fontWeight: "bold",
+            textAlign: "center",
+            marginBottom: 4,
+            color: "secondary.main",
+          }}
+        >
           Register
         </Typography>
         {error && (

@@ -162,7 +162,16 @@ export default function AddRecipe() {
 
   return (
     <Box sx={{ padding: 4, maxWidth: "800px", margin: "0 auto" }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography
+        component="h2"
+        sx={{
+          fontSize: { xs: "2rem", md: "3rem" },
+          fontWeight: "bold",
+          textAlign: "center",
+          marginBottom: 4,
+          color: "secondary.main",
+        }}
+      >
         Add a New Recipe
       </Typography>
 

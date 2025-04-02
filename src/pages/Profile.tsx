@@ -18,7 +18,16 @@ export default function Profile() {
 
   return (
     <Box sx={{ maxWidth: "xl", mx: "auto", p: 4 }}>
-      <Typography variant="h4" gutterBottom>
+      <Typography
+        component="h4"
+        sx={{
+          fontSize: { xs: "2rem", md: "3rem" },
+          fontWeight: "bold",
+          textAlign: "center",
+          marginBottom: 4,
+          color: "secondary.main",
+        }}
+      >
         My Profile
       </Typography>
 
