@@ -22,7 +22,7 @@ import {
   savedRecipesTable,
   usersTable,
 } from "../db/schema.js"
-import { eq, and } from "drizzle-orm"
+import { eq, and, gt } from "drizzle-orm"
 import { AuthService } from "./services/authService.js"
 import { authenticateToken, AuthRequest } from "./middleware/auth.js"
 import bcrypt from "bcrypt"
@@ -34,8 +34,25 @@ import http from "http"
 import path from "path"
 import { z } from "zod"
 import { handleChat } from "./controllers/chatController.js"
+import nodemailer from "nodemailer"
+import crypto from "crypto"
+import dotenv from "dotenv"
+
+// Load environment variables based on NODE_ENV
+const envFile =
+  process.env.NODE_ENV === "production" ? ".env" : ".env.development"
+dotenv.config({ path: envFile })
+
+console.log("Environment:", process.env.NODE_ENV)
+console.log(
+  "Using database URL:",
+  process.env.DATABASE_URL?.replace(/:[^:]*@/, ":****@")
+)
 
 type DbType = NodePgDatabase<typeof schema>
+
+// Define custom type for async request handlers
+type AsyncRequestHandler = (req: Request, res: Response) => Promise<void>
 
 // Initialize Express app
 const app = express()
@@ -705,6 +722,128 @@ app.delete(
     }
   }
 )
+
+// Configure email transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+})
+
+interface ForgotPasswordRequest {
+  email: string
+}
+
+interface ResetPasswordRequest {
+  token: string
+  password: string
+}
+
+// Define request handlers with proper types
+const forgotPasswordHandler: AsyncRequestHandler = async (req, res) => {
+  try {
+    const { email } = req.body as ForgotPasswordRequest
+
+    // Find user by email
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.email, email))
+      .limit(1)
+
+    if (!user) {
+      // Return success even if user doesn't exist to prevent email enumeration
+      res.json({
+        message:
+          "If an account exists with this email, you will receive a password reset link.",
+      })
+      return
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString("hex")
+    const resetTokenHash = await bcrypt.hash(resetToken, 10)
+    const resetTokenExpiry = new Date(Date.now() + 3600000) // 1 hour from now
+
+    // Store reset token in database
+    await db
+      .update(usersTable)
+      .set({
+        resetTokenHash,
+        resetTokenExpiry,
+      })
+      .where(eq(usersTable.id, user.id))
+
+    // Send reset email
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: email,
+      subject: "Password Reset Request",
+      html: `
+        <p>You requested a password reset for your account.</p>
+        <p>Click <a href="${resetUrl}">here</a> to reset your password.</p>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+      `,
+    })
+
+    res.json({
+      message:
+        "If an account exists with this email, you will receive a password reset link.",
+    })
+  } catch (error) {
+    console.error("Error in forgot-password:", error)
+    res.status(500).json({ error: "Failed to process password reset request" })
+  }
+}
+
+const resetPasswordHandler: AsyncRequestHandler = async (req, res) => {
+  try {
+    const { token, password } = req.body as ResetPasswordRequest
+
+    // Find user with valid reset token
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(
+        and(
+          eq(usersTable.resetTokenHash, await bcrypt.hash(token, 10)),
+          gt(usersTable.resetTokenExpiry, new Date())
+        )
+      )
+      .limit(1)
+
+    if (!user) {
+      res.status(400).json({ error: "Invalid or expired reset token" })
+      return
+    }
+
+    // Update password and clear reset token
+    const passwordHash = await bcrypt.hash(password, 10)
+    await db
+      .update(usersTable)
+      .set({
+        passwordHash,
+        resetTokenHash: null,
+        resetTokenExpiry: null,
+      })
+      .where(eq(usersTable.id, user.id))
+
+    res.json({ message: "Password has been reset successfully" })
+  } catch (error) {
+    console.error("Error in reset-password:", error)
+    res.status(500).json({ error: "Failed to reset password" })
+  }
+}
+
+// Register routes with the app
+app.post("/api/auth/forgot-password", forgotPasswordHandler)
+app.post("/api/auth/reset-password", resetPasswordHandler)
 
 // Add these routes to your existing Express app
 app.post("/api/auth/register", async (req, res) => {

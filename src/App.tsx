@@ -5,6 +5,8 @@ import Recipes from "./pages/Recipes" // Your Recipes page component
 import About from "./pages/About" // Your About Us page component
 import Login from "./pages/Login"
 import Register from "./pages/Register"
+import ForgotPassword from "./pages/ForgotPassword"
+import ResetPassword from "./pages/ResetPassword"
 import RecipeDetails from "./pages/RecipeDetails" // Example details page
 import { ThemeProvider } from "./contexts/ThemeContext"
 import { AuthProvider } from "./contexts/AuthProvider"
@@ -28,6 +30,8 @@ export default function App() {
               <Route path="chat" element={<RecipeChatPage />} />
               <Route path="login" element={<Login />} />
               <Route path="register" element={<Register />} />
+              <Route path="forgot-password" element={<ForgotPassword />} />
+              <Route path="reset-password" element={<ResetPassword />} />
               <Route
                 path="add"
                 element={

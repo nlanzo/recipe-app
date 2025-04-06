@@ -12,30 +12,33 @@ import { relations } from "drizzle-orm"
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: varchar("username", { length: 50 }).notNull().unique(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
+  username: varchar("username", { length: 50 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
-  created_at: timestamp("created_at").defaultNow(),
+  resetTokenHash: varchar("reset_token_hash", { length: 255 }),
+  resetTokenExpiry: timestamp("reset_token_expiry"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
 
 export const recipesTable = pgTable("recipes", {
   id: serial("id").primaryKey(),
-  title: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  instructions: text("instructions"),
-  userId: integer("user_id")
-    .references(() => usersTable.id)
-    .notNull(), // Foreign key to users
-  activeTimeInMinutes: integer("active_time_in_minutes").notNull(), // Time actively working on the recipe
-  totalTimeInMinutes: integer("total_time_in_minutes").notNull(), // Total time to prepare the recipe
-  numberOfServings: integer("number_of_servings").notNull(), // Number of servings the recipe makes
-  created_at: timestamp().defaultNow(),
-  updated_at: timestamp().defaultNow(),
+  userId: integer("user_id").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  instructions: text("instructions").notNull(),
+  activeTimeInMinutes: integer("active_time_in_minutes").notNull(),
+  totalTimeInMinutes: integer("total_time_in_minutes").notNull(),
+  numberOfServings: integer("number_of_servings").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
 
 export const ingredientsTable = pgTable("ingredients", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
 
 export const recipeIngredientsTable = pgTable("recipe_ingredients", {

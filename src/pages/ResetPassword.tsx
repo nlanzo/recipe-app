@@ -1,6 +1,5 @@
 import { useState } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
-import { useAuth } from "../contexts/useAuth"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import {
   Container,
   Paper,
@@ -8,45 +7,54 @@ import {
   Button,
   Typography,
   Box,
-  Link,
+  Alert,
 } from "@mui/material"
 
-interface LocationState {
-  returnTo?: string
-}
-
-export default function Login() {
-  const [email, setEmail] = useState("")
+export default function ResetPassword() {
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const navigate = useNavigate()
-  const location = useLocation()
-  const { login } = useAuth()
+  const [searchParams] = useSearchParams()
+  const token = searchParams.get("token")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setSuccess("")
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
+    if (!token) {
+      setError("Invalid reset link")
+      return
+    }
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ token, password }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || "Login failed")
+        throw new Error(data.error || "Failed to reset password")
       }
 
-      login(data.token, data.user)
-
-      // Navigate to the return URL if it exists, otherwise go to home
-      const state = location.state as LocationState
-      navigate(state?.returnTo || "/")
+      setSuccess(
+        "Password has been reset successfully. You can now login with your new password."
+      )
+      setTimeout(() => {
+        navigate("/login")
+      }, 3000)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
     }
@@ -65,51 +73,45 @@ export default function Login() {
             color: "secondary.main",
           }}
         >
-          Login
+          Reset Password
         </Typography>
         {error && (
-          <Typography color="error" sx={{ mb: 2 }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
             {error}
-          </Typography>
+          </Alert>
+        )}
+        {success && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {success}
+          </Alert>
         )}
         <Box component="form" onSubmit={handleSubmit}>
           <TextField
             fullWidth
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            margin="normal"
-            required
-          />
-          <TextField
-            fullWidth
-            label="Password"
+            label="New Password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             margin="normal"
             required
           />
-          <Typography align="right" sx={{ mb: 2 }}>
-            <Link href="/forgot-password" underline="hover">
-              Forgot Password?
-            </Link>
-          </Typography>
+          <TextField
+            fullWidth
+            label="Confirm New Password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            margin="normal"
+            required
+          />
           <Button
             type="submit"
             variant="contained"
             fullWidth
             sx={{ mt: 3, mb: 2 }}
           >
-            Login
+            Reset Password
           </Button>
-          <Typography align="center">
-            Don't have an account?{" "}
-            <Link href="/register" underline="hover">
-              Register here
-            </Link>
-          </Typography>
         </Box>
       </Paper>
     </Container>

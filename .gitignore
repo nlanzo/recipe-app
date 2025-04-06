@@ -23,8 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
-.env
+.env*
 .ssh
+src/db/migrations/*
 
 #scripts
 deploy.sh
