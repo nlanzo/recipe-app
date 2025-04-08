@@ -19,9 +19,12 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL environment variable is not set")
 }
 
-// Debug database connection info
+// Configure SSL for production
 const isProduction = process.env.NODE_ENV === "production"
-const serverRoot = path.resolve(process.cwd(), "src/server")
+const serverRoot = path.resolve(
+  process.cwd(),
+  isProduction ? "dist" : "src/server"
+)
 const caCertPath = path.join(serverRoot, "certs", "us-east-2-bundle.pem")
 
 console.log("Current working directory:", process.cwd())
