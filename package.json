@@ -10,7 +10,7 @@
     "dev:server": "cross-env NODE_ENV=development tsx watch src/server/server.ts",
     "build": "vite build",
     "build:server": "tsc -p tsconfig.server.json && npm run copy-files",
-    "copy-files": "node -e \"const fs=require('fs'); const path=require('path'); !fs.existsSync('dist/certs') && fs.mkdirSync('dist/certs', {recursive:true}); fs.copyFileSync('certs/us-east-2-bundle.pem', 'dist/certs/us-east-2-bundle.pem'); fs.copyFileSync('.env', 'dist/.env');\"",
+    "copy-files": "node --loader ts-node/esm scripts/copy-files.js",
     "start": "node dist/server/server.js",
     "test": "jest",
     "lint": "eslint .",
@@ -19,7 +19,8 @@
     "db:push": "cross-env NODE_ENV=development drizzle-kit push",
     "db:generate:prod": "cross-env NODE_ENV=production drizzle-kit generate",
     "db:push:prod": "cross-env NODE_ENV=production drizzle-kit push",
-    "db:studio": "cross-env NODE_ENV=development drizzle-kit studio"
+    "db:studio": "cross-env NODE_ENV=development drizzle-kit studio",
+    "install:prod": "npm install --omit=dev"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.696.0",
