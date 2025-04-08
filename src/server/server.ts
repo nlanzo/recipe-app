@@ -41,11 +41,21 @@ const envFile =
   process.env.NODE_ENV === "production" ? ".env" : ".env.development"
 dotenv.config({ path: envFile })
 
+// Debug environment information
+console.log("\nServer Configuration:")
+console.log("--------------------")
 console.log("Environment:", process.env.NODE_ENV)
+console.log("Domain:", process.env.DOMAIN_NAME)
+console.log("Current Directory:", process.cwd())
 console.log(
-  "Using database URL:",
+  "Database URL:",
   process.env.DATABASE_URL?.replace(/:[^:]*@/, ":****@")
 )
+console.log(
+  "OpenAI API Key:",
+  process.env.OPENAI_API_KEY ? "[configured]" : "[missing]"
+)
+console.log("--------------------\n")
 
 type DbType = NodePgDatabase<typeof schema>
 
@@ -55,14 +65,6 @@ type AsyncRequestHandler = (req: Request, res: Response) => Promise<void>
 // Initialize Express app
 const app = express()
 const httpPort = 3000 // Use port 3000 for HTTP since Nginx will handle port 80
-const domain = process.env.DOMAIN_NAME
-
-// Debug environment variables
-console.log("Environment Variables:")
-console.log("DOMAIN_NAME:", domain)
-console.log("NODE_ENV:", process.env.NODE_ENV)
-console.log("Current Directory:", process.cwd())
-console.log("OPENAI_API_KEY exists:", !!process.env.OPENAI_API_KEY)
 
 // Validate required environment variables
 const requiredEnvVars = [
