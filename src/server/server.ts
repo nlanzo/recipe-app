@@ -41,30 +41,16 @@ const envFile =
   process.env.NODE_ENV === "production" ? ".env" : ".env.development"
 dotenv.config({ path: envFile })
 
-// Debug environment information
+// Server configuration logging
 console.log("\nServer Configuration:")
 console.log("--------------------")
 console.log("Environment:", process.env.NODE_ENV)
 console.log("Domain:", process.env.DOMAIN_NAME)
-console.log("Current Directory:", process.cwd())
 console.log(
   "Database URL:",
   process.env.DATABASE_URL?.replace(/:[^:]*@/, ":****@")
 )
-console.log(
-  "OpenAI API Key:",
-  process.env.OPENAI_API_KEY ? "[configured]" : "[missing]"
-)
 console.log("--------------------\n")
-
-type DbType = NodePgDatabase<typeof schema>
-
-// Define custom type for async request handlers
-type AsyncRequestHandler = (req: Request, res: Response) => Promise<void>
-
-// Initialize Express app
-const app = express()
-const httpPort = 3000 // Use port 3000 for HTTP since Nginx will handle port 80
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -84,6 +70,15 @@ for (const envVar of requiredEnvVars) {
   }
 }
 
+type DbType = NodePgDatabase<typeof schema>
+
+// Define custom type for async request handlers
+type AsyncRequestHandler = (req: Request, res: Response) => Promise<void>
+
+// Initialize Express app
+const app = express()
+const httpPort = 3000 // Use port 3000 for HTTP since Nginx will handle port 80
+
 // Configure CORS
 app.use(
   cors({
@@ -95,12 +90,11 @@ app.use(
 
 app.use(express.json())
 
-// Create servers
+// Create server
 const httpServer = http.createServer(app)
 
 // Serve static files from the dist directory
 const staticPath = path.join(process.cwd(), "dist")
-console.log("Serving static files from:", staticPath)
 app.use(express.static(staticPath))
 
 const s3Client = new S3Client({

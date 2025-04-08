@@ -10,7 +10,7 @@
     "dev:server": "cross-env NODE_ENV=development tsx watch src/server/server.ts",
     "build": "vite build",
     "build:server": "tsc -p tsconfig.server.json && npm run copy-files",
-    "copy-files": "node --loader ts-node/esm scripts/copy-files.js",
+    "copy-files": "tsx scripts/copy-files.js",
     "start": "node dist/server/server.js",
     "test": "jest",
     "lint": "eslint .",
