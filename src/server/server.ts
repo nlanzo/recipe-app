@@ -28,8 +28,6 @@ import { authenticateToken, AuthRequest } from "./middleware/auth.js"
 import bcrypt from "bcrypt"
 import { NodePgDatabase } from "drizzle-orm/node-postgres"
 import * as schema from "../db/schema.js"
-import https from "https"
-import fs from "fs"
 import http from "http"
 import path from "path"
 import { z } from "zod"
@@ -56,7 +54,6 @@ type AsyncRequestHandler = (req: Request, res: Response) => Promise<void>
 
 // Initialize Express app
 const app = express()
-const port = process.env.PORT || 443 // Standard HTTPS port
 const httpPort = 3000 // Use port 3000 for HTTP since Nginx will handle port 80
 const domain = process.env.DOMAIN_NAME
 
@@ -97,39 +94,6 @@ app.use(
 app.use(express.json())
 
 // Create servers
-let httpsServer: https.Server | null = null
-
-// Try to load SSL certificates if they exist
-try {
-  if (!domain) {
-    throw new Error("DOMAIN_NAME not set in environment variables")
-  }
-
-  // Check if SSL certificates exist
-  const certPath = `/etc/letsencrypt/live/${domain}/fullchain.pem`
-  const keyPath = `/etc/letsencrypt/live/${domain}/privkey.pem`
-
-  console.log("Checking SSL certificates:")
-  console.log("Certificate path:", certPath)
-  console.log("Key path:", keyPath)
-
-  if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
-    console.log("SSL certificates not found, running in HTTP-only mode")
-  } else {
-    const sslOptions = {
-      cert: fs.readFileSync(certPath),
-      key: fs.readFileSync(keyPath),
-    }
-    httpsServer = https.createServer(sslOptions, app)
-    console.log(`SSL certificates loaded successfully for ${domain}`)
-  }
-} catch (error) {
-  console.log(
-    "SSL certificates not found or configuration error:",
-    error instanceof Error ? error.message : "Unknown error"
-  )
-}
-
 const httpServer = http.createServer(app)
 
 // Serve static files from the dist directory
@@ -1087,13 +1051,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   next(err) // Propagate error to Express's default error handler
 })
 
-// Start the servers
+// Start the server
 httpServer.listen(httpPort, "0.0.0.0", () => {
-  console.log(`HTTP Server running on http://0.0.0.0:${httpPort}`)
+  console.log(`Server running on http://0.0.0.0:${httpPort}`)
 })
-
-if (httpsServer) {
-  httpsServer.listen(Number(port), "0.0.0.0", () => {
-    console.log(`HTTPS Server running on https://0.0.0.0:${port}`)
-  })
-}
