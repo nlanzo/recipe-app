@@ -72,7 +72,7 @@ export async function addRecipe({
         activeTimeInMinutes,
         totalTimeInMinutes,
         numberOfServings,
-        created_at: createdAt,
+        createdAt,
       })
       .returning()
 

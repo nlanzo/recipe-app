@@ -28,7 +28,7 @@ export async function getRecipeCardData() {
   return recipes
 }
 
-// fetch a single recipe by id.  include the recipe's title, author, description, instructions, activeTimeInMinutes, totalTimeInMinutes, numberOfServings, created_at, and updated_at.  include ingredient names, quantities, and units.  Also include the recipe's image URLs. This query is used to populate the RecipeDetails page.
+// fetch a single recipe by id.  include the recipe's title, author, description, instructions, activeTimeInMinutes, totalTimeInMinutes, numberOfServings, createdAt, and updatedAt.  include ingredient names, quantities, and units.  Also include the recipe's image URLs. This query is used to populate the RecipeDetails page.
 export async function getRecipeById(id: number) {
   // Fetch the main recipe details
   const recipe = await db
@@ -41,8 +41,8 @@ export async function getRecipeById(id: number) {
       activeTimeInMinutes: recipesTable.activeTimeInMinutes,
       totalTimeInMinutes: recipesTable.totalTimeInMinutes,
       numberOfServings: recipesTable.numberOfServings,
-      createdAt: recipesTable.created_at,
-      updatedAt: recipesTable.updated_at,
+      createdAt: recipesTable.createdAt,
+      updatedAt: recipesTable.updatedAt,
     })
     .from(recipesTable)
     .leftJoin(usersTable, eq(usersTable.id, recipesTable.userId))
