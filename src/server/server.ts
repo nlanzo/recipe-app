@@ -95,8 +95,7 @@ app.use(express.json())
 const httpServer = http.createServer(app)
 
 // Serve static files from the dist directory
-const staticPath = path.join(process.cwd(), "dist")
-app.use(express.static(staticPath))
+app.use(express.static(path.join(process.cwd(), "dist")))
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
