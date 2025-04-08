@@ -50,6 +50,7 @@ console.log(
   "Database URL:",
   process.env.DATABASE_URL?.replace(/:[^:]*@/, ":****@")
 )
+console.log("SSL Certificate:", process.env.PG_SSL_CA)
 console.log("--------------------\n")
 
 // Validate required environment variables
