@@ -22,7 +22,7 @@ import {
   savedRecipesTable,
   usersTable,
 } from "../db/schema.js"
-import { eq, and, gt } from "drizzle-orm"
+import { eq, and, gt, sql } from "drizzle-orm"
 import { AuthService } from "./services/authService.js"
 import { authenticateToken, AuthRequest } from "./middleware/auth.js"
 import bcrypt from "bcrypt"
@@ -32,9 +32,9 @@ import http from "http"
 import path from "path"
 import { z } from "zod"
 import { handleChat } from "./controllers/chatController.js"
-import nodemailer from "nodemailer"
 import crypto from "crypto"
 import dotenv from "dotenv"
+import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses"
 
 // Load environment variables based on NODE_ENV
 const envFile =
@@ -70,6 +70,13 @@ for (const envVar of requiredEnvVars) {
     process.exit(1)
   }
 }
+
+// Add this near the top with other environment validation
+const FRONTEND_URL =
+  process.env.FRONTEND_URL?.trim() ||
+  (process.env.NODE_ENV === "production"
+    ? "https://chopchoprecipes.com"
+    : "http://localhost:5173")
 
 type DbType = NodePgDatabase<typeof schema>
 
@@ -683,16 +690,82 @@ app.delete(
   }
 )
 
-// Configure email transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: true,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+// Configure AWS SES client
+const sesClient = new SESClient({
+  region: process.env.AWS_REGION?.trim(),
+  credentials: {
+    accessKeyId:
+      (
+        process.env.AWS_SES_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID
+      )?.trim() ?? "",
+    secretAccessKey:
+      (
+        process.env.AWS_SES_SECRET_ACCESS_KEY ||
+        process.env.AWS_SECRET_ACCESS_KEY
+      )?.trim() ?? "",
   },
 })
+
+// Helper function to send emails using SES
+async function sendEmail(to: string, subject: string, html: string) {
+  try {
+    const params = {
+      Source: process.env.SMTP_FROM?.trim() ?? "noreply@chopchoprecipes.com",
+      Destination: {
+        ToAddresses: [to.trim()],
+      },
+      Message: {
+        Subject: {
+          Data: subject,
+          Charset: "UTF-8",
+        },
+        Body: {
+          Html: {
+            Data: html,
+            Charset: "UTF-8",
+          },
+        },
+      },
+    }
+
+    console.log("Attempting to send email with params:", {
+      source: params.Source,
+      to: params.Destination.ToAddresses,
+      subject: params.Message.Subject.Data,
+      region: process.env.AWS_REGION?.trim(),
+      hasAccessKey: Boolean(
+        process.env.AWS_SES_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID
+      ),
+      hasSecretKey: Boolean(
+        process.env.AWS_SES_SECRET_ACCESS_KEY ||
+          process.env.AWS_SECRET_ACCESS_KEY
+      ),
+    })
+
+    const command = new SendEmailCommand(params)
+    const result = await sesClient.send(command)
+    console.log("Email sent successfully:", result.MessageId)
+    return result
+  } catch (error) {
+    console.error("Error details:", {
+      error,
+      credentials: {
+        region: process.env.AWS_REGION?.trim(),
+        accessKeyId:
+          process.env.AWS_SES_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID
+            ? "Set"
+            : "Not set",
+        secretAccessKey:
+          process.env.AWS_SES_SECRET_ACCESS_KEY ||
+          process.env.AWS_SECRET_ACCESS_KEY
+            ? "Set"
+            : "Not set",
+        smtpFrom: process.env.SMTP_FROM?.trim(),
+      },
+    })
+    throw new Error("Failed to send email")
+  }
+}
 
 interface ForgotPasswordRequest {
   email: string
@@ -738,19 +811,27 @@ const forgotPasswordHandler: AsyncRequestHandler = async (req, res) => {
       })
       .where(eq(usersTable.id, user.id))
 
+    // Generate reset URL
+    const passwordResetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`
+    console.log("Generated reset URL (domain only):", FRONTEND_URL)
+
     // Send reset email
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM,
-      to: email,
-      subject: "Password Reset Request",
-      html: `
-        <p>You requested a password reset for your account.</p>
-        <p>Click <a href="${resetUrl}">here</a> to reset your password.</p>
-        <p>This link will expire in 1 hour.</p>
-        <p>If you didn't request this, please ignore this email.</p>
-      `,
-    })
+    await sendEmail(
+      email,
+      "Password Reset Request - ChopChop Recipes",
+      `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2c3e50;">Password Reset Request</h2>
+        <p>You requested a password reset for your ChopChop Recipes account.</p>
+        <p>Click the button below to reset your password:</p>
+        <a href="${passwordResetUrl}" style="display: inline-block; background-color: #3498db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 16px 0;">Reset Password</a>
+        <p style="color: #7f8c8d; font-size: 0.9em;">This link will expire in 1 hour.</p>
+        <p style="color: #7f8c8d; font-size: 0.9em;">If you didn't request this, please ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #7f8c8d; font-size: 0.8em;">ChopChop Recipes - Your Personal Recipe Collection</p>
+      </div>
+      `
+    )
 
     res.json({
       message:
@@ -766,19 +847,28 @@ const resetPasswordHandler: AsyncRequestHandler = async (req, res) => {
   try {
     const { token, password } = req.body as ResetPasswordRequest
 
-    // Find user with valid reset token
+    // Find user with non-expired reset token
     const [user] = await db
       .select()
       .from(usersTable)
       .where(
         and(
-          eq(usersTable.resetTokenHash, await bcrypt.hash(token, 10)),
-          gt(usersTable.resetTokenExpiry, new Date())
+          gt(usersTable.resetTokenExpiry, new Date()),
+          // Only select users that have a reset token
+          // This avoids unnecessary bcrypt comparisons
+          sql`${usersTable.resetTokenHash} is not null`
         )
       )
       .limit(1)
 
-    if (!user) {
+    if (!user || !user.resetTokenHash) {
+      res.status(400).json({ error: "Invalid or expired reset token" })
+      return
+    }
+
+    // Verify the reset token
+    const isValidToken = await bcrypt.compare(token, user.resetTokenHash)
+    if (!isValidToken) {
       res.status(400).json({ error: "Invalid or expired reset token" })
       return
     }
