@@ -22,7 +22,7 @@ import {
   savedRecipesTable,
   usersTable,
 } from "../db/schema.js"
-import { eq, and, gt, sql } from "drizzle-orm"
+import { eq, and, gt, sql, ilike } from "drizzle-orm"
 import { AuthService } from "./services/authService.js"
 import { authenticateToken, AuthRequest } from "./middleware/auth.js"
 import bcrypt from "bcrypt"
@@ -248,17 +248,59 @@ const validateRecipeUpdate = async (
   }
 }
 
-// Query the database for the recipe with the specified ID
-app.get("/api/recipes/:id", async (req: Request, res: Response) => {
-  const recipeId = parseInt(req.params.id)
-  const recipe = await getRecipeById(recipeId)
-  res.json(recipe)
-})
-
-app.get("/api/recipes", async (_req: Request, res: Response) => {
+// Get all recipes
+app.get("/api/recipes", async (_req: Request, res: Response): Promise<void> => {
   const recipes = await getRecipeCardData()
   res.json(recipes)
 })
+
+// Search recipes (must come before /:id route)
+app.get(
+  "/api/recipes/search",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { query } = req.query
+      if (!query || typeof query !== "string") {
+        res.status(400).json({ error: "Search query is required" })
+        return
+      }
+
+      const recipes = await db
+        .select({
+          id: recipesTable.id,
+          title: recipesTable.title,
+          totalTimeInMinutes: recipesTable.totalTimeInMinutes,
+          numberOfServings: recipesTable.numberOfServings,
+          imageUrl: imagesTable.imageUrl,
+        })
+        .from(recipesTable)
+        .leftJoin(
+          imagesTable,
+          and(
+            eq(imagesTable.recipeId, recipesTable.id),
+            eq(imagesTable.isPrimary, true)
+          )
+        )
+        .where(ilike(recipesTable.title, `%${query}%`))
+        .limit(20)
+
+      res.json(recipes)
+    } catch (error) {
+      console.error("Error searching recipes:", error)
+      res.status(500).json({ error: "Failed to search recipes" })
+    }
+  }
+)
+
+// Get recipe by ID (must come after /search route)
+app.get(
+  "/api/recipes/:id",
+  async (req: Request, res: Response): Promise<void> => {
+    const recipeId = parseInt(req.params.id)
+    const recipe = await getRecipeById(recipeId)
+    res.json(recipe)
+  }
+)
 
 // TODO update this endpoint
 
