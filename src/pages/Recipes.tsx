@@ -7,6 +7,10 @@ import {
   TextField,
   InputAdornment,
   CircularProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from "@mui/material"
 import SearchIcon from "@mui/icons-material/Search"
 import RecipeCard from "../components/RecipeCard"
@@ -20,11 +24,14 @@ interface Recipe {
   imageUrl: string | null
 }
 
+type SortOption = "" | "title" | "time"
+
 export default function Recipes() {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
+  const [sortBy, setSortBy] = useState<SortOption>("")
   const debouncedSearch = useDebounce(searchQuery, 500)
 
   useEffect(() => {
@@ -32,8 +39,10 @@ export default function Recipes() {
       setLoading(true)
       try {
         const url = debouncedSearch
-          ? `/api/recipes/search?query=${encodeURIComponent(debouncedSearch)}`
-          : "/api/recipes"
+          ? `/api/recipes/search?query=${encodeURIComponent(debouncedSearch)}${
+              sortBy ? `&sort=${sortBy}` : ""
+            }`
+          : `/api/recipes${sortBy ? `?sort=${sortBy}` : ""}`
         const response = await fetch(url)
         if (!response.ok) {
           throw new Error("Failed to fetch recipes")
@@ -50,7 +59,7 @@ export default function Recipes() {
     }
 
     fetchRecipes()
-  }, [debouncedSearch])
+  }, [debouncedSearch, sortBy])
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -68,20 +77,39 @@ export default function Recipes() {
       </Typography>
 
       <Box sx={{ maxWidth: 600, mx: "auto", mb: 4 }}>
-        <TextField
-          fullWidth
-          variant="outlined"
-          placeholder="Search recipes..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
-          }}
-        />
+        <Grid container spacing={2}>
+          <Grid item xs={8}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder="Search recipes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={4}>
+            <FormControl fullWidth>
+              <InputLabel id="sort-select-label">Sort By</InputLabel>
+              <Select
+                labelId="sort-select-label"
+                value={sortBy}
+                label="Sort By"
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+              >
+                <MenuItem value="">None</MenuItem>
+                <MenuItem value="title">Title</MenuItem>
+                <MenuItem value="time">Prep Time</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
       </Box>
 
       {error && (

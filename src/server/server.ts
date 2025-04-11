@@ -259,13 +259,13 @@ app.get(
   "/api/recipes/search",
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { query } = req.query
+      const { query, sort } = req.query
       if (!query || typeof query !== "string") {
         res.status(400).json({ error: "Search query is required" })
         return
       }
 
-      const recipes = await db
+      const baseQuery = db
         .select({
           id: recipesTable.id,
           title: recipesTable.title,
@@ -282,7 +282,16 @@ app.get(
           )
         )
         .where(ilike(recipesTable.title, `%${query}%`))
-        .limit(20)
+
+      // Add sorting
+      const recipes = await (typeof sort === "string"
+        ? sort === "title"
+          ? baseQuery.orderBy(sql`${recipesTable.title} asc`)
+          : sort === "time"
+          ? baseQuery.orderBy(sql`${recipesTable.totalTimeInMinutes} asc`)
+          : baseQuery
+        : baseQuery
+      ).limit(20)
 
       res.json(recipes)
     } catch (error) {
