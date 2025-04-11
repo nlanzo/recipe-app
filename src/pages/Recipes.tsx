@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Container,
   Grid,
@@ -24,6 +24,15 @@ interface Recipe {
   imageUrl: string | null
 }
 
+interface RecipeResponse {
+  recipes: Recipe[]
+  pagination: {
+    total: number
+    hasMore: boolean
+    nextCursor: string | null
+  }
+}
+
 type SortOption = "" | "title" | "time"
 
 export default function Recipes() {
@@ -32,34 +41,69 @@ export default function Recipes() {
   const [error, setError] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<SortOption>("")
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const debouncedSearch = useDebounce(searchQuery, 500)
 
-  useEffect(() => {
-    const fetchRecipes = async () => {
-      setLoading(true)
+  const fetchRecipes = useCallback(
+    async (cursor: string | null = null, isLoadingMore = false) => {
+      if (!isLoadingMore) {
+        setLoading(true)
+      }
       try {
         const url = debouncedSearch
           ? `/api/recipes/search?query=${encodeURIComponent(debouncedSearch)}${
               sortBy ? `&sort=${sortBy}` : ""
+            }${cursor ? `&cursor=${cursor}` : ""}`
+          : `/api/recipes${sortBy ? `?sort=${sortBy}` : ""}${
+              cursor ? `${sortBy ? "&" : "?"}cursor=${cursor}` : ""
             }`
-          : `/api/recipes${sortBy ? `?sort=${sortBy}` : ""}`
         const response = await fetch(url)
         if (!response.ok) {
           throw new Error("Failed to fetch recipes")
         }
-        const data = await response.json()
-        setRecipes(data)
+        const data: RecipeResponse = await response.json()
+        if (isLoadingMore) {
+          setRecipes((prev) => [...prev, ...data.recipes])
+        } else {
+          setRecipes(data.recipes)
+        }
+        setNextCursor(data.pagination.nextCursor)
+        setHasMore(data.pagination.hasMore)
         setError("")
       } catch (err) {
         setError("Failed to load recipes")
         console.error("Error fetching recipes:", err)
       } finally {
         setLoading(false)
+        setIsLoadingMore(false)
+      }
+    },
+    [debouncedSearch, sortBy]
+  )
+
+  useEffect(() => {
+    setNextCursor(null)
+    fetchRecipes(null)
+  }, [debouncedSearch, sortBy, fetchRecipes])
+
+  const handleScroll = useCallback(() => {
+    if (
+      window.innerHeight + document.documentElement.scrollTop ===
+      document.documentElement.offsetHeight
+    ) {
+      if (hasMore && !isLoadingMore && !loading && nextCursor) {
+        setIsLoadingMore(true)
+        fetchRecipes(nextCursor, true)
       }
     }
+  }, [hasMore, isLoadingMore, loading, nextCursor, fetchRecipes])
 
-    fetchRecipes()
-  }, [debouncedSearch, sortBy])
+  useEffect(() => {
+    window.addEventListener("scroll", handleScroll)
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [handleScroll])
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -118,7 +162,7 @@ export default function Recipes() {
         </Typography>
       )}
 
-      {loading ? (
+      {loading && recipes.length === 0 ? (
         <Box
           sx={{
             display: "flex",
@@ -130,28 +174,35 @@ export default function Recipes() {
           <CircularProgress />
         </Box>
       ) : (
-        <Grid container spacing={4}>
-          {recipes.map((recipe) => (
-            <Grid item key={recipe.id} xs={12} sm={6} md={4}>
-              <RecipeCard
-                id={recipe.id}
-                title={recipe.title}
-                imageUrl={recipe.imageUrl}
-                totalTimeInMinutes={recipe.totalTimeInMinutes}
-                numberOfServings={recipe.numberOfServings}
-              />
-            </Grid>
-          ))}
-          {recipes.length === 0 && !loading && (
-            <Grid item xs={12}>
-              <Typography align="center" color="textSecondary">
-                {searchQuery
-                  ? "No recipes found matching your search."
-                  : "No recipes available."}
-              </Typography>
-            </Grid>
+        <>
+          <Grid container spacing={4}>
+            {recipes?.map((recipe, index) => (
+              <Grid item key={`${recipe.id}-${index}`} xs={12} sm={6} md={4}>
+                <RecipeCard
+                  id={recipe.id}
+                  title={recipe.title}
+                  imageUrl={recipe.imageUrl}
+                  totalTimeInMinutes={recipe.totalTimeInMinutes}
+                  numberOfServings={recipe.numberOfServings}
+                />
+              </Grid>
+            ))}
+            {(!recipes || recipes.length === 0) && !loading && (
+              <Grid item xs={12}>
+                <Typography align="center" color="textSecondary">
+                  {searchQuery
+                    ? "No recipes found matching your search."
+                    : "No recipes available."}
+                </Typography>
+              </Grid>
+            )}
+          </Grid>
+          {isLoadingMore && (
+            <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
+              <CircularProgress />
+            </Box>
           )}
-        </Grid>
+        </>
       )}
     </Container>
   )
