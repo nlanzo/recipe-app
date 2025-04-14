@@ -3,9 +3,13 @@ import * as dotenv from "dotenv"
 import fs from "fs"
 import path from "path"
 
+// Clear any existing environment variables that might interfere
+delete process.env.DATABASE_URL
+
 // Load environment variables based on NODE_ENV
 const envFile =
   process.env.NODE_ENV === "production" ? ".env" : ".env.development"
+console.log("Loading environment from:", envFile)
 dotenv.config({ path: envFile })
 
 // Get database URL from environment variables
@@ -30,13 +34,18 @@ const isProduction = process.env.NODE_ENV === "production"
 const serverRoot = path.resolve(process.cwd(), "src/server")
 const caCertPath = path.join(serverRoot, "certs", "us-east-2-bundle.pem")
 
-console.log(
-  "Using database configuration for:",
-  isProduction ? "production" : "development"
-)
+console.log("\nDatabase Configuration:")
+console.log("----------------------")
+console.log("Environment:", isProduction ? "production" : "development")
 console.log("Host:", dbConfig.host)
+console.log("Port:", dbConfig.port)
 console.log("Database:", dbConfig.database)
-console.log("SSL Certificate Path:", caCertPath)
+console.log("User:", dbConfig.user)
+console.log("SSL:", isProduction ? "enabled" : "disabled")
+if (isProduction) {
+  console.log("SSL Certificate Path:", caCertPath)
+}
+console.log("----------------------\n")
 
 // Verify SSL certificate exists in production
 if (isProduction && !fs.existsSync(caCertPath)) {

@@ -2,6 +2,7 @@ export interface User {
   id: number
   username: string
   email: string
+  isAdmin: boolean
 }
 
 export interface AuthContextType {
@@ -10,4 +11,5 @@ export interface AuthContextType {
   login: (token: string, user: User) => void
   logout: () => void
   isAuthenticated: boolean
+  isLoading: boolean
 }

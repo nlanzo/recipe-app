@@ -17,6 +17,7 @@ export const usersTable = pgTable("users", {
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   resetTokenHash: varchar("reset_token_hash", { length: 255 }),
   resetTokenExpiry: timestamp("reset_token_expiry"),
+  isAdmin: boolean("is_admin").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })

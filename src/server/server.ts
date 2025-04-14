@@ -22,7 +22,7 @@ import {
   savedRecipesTable,
   usersTable,
 } from "../db/schema.js"
-import { eq, and, gt, sql, ilike, or } from "drizzle-orm"
+import { eq, and, gt, sql, or } from "drizzle-orm"
 import { AuthService } from "./services/authService.js"
 import { authenticateToken, AuthRequest } from "./middleware/auth.js"
 import bcrypt from "bcrypt"
@@ -35,6 +35,7 @@ import { handleChat } from "./controllers/chatController.js"
 import crypto from "crypto"
 import dotenv from "dotenv"
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses"
+import adminRoutes from "./routes/adminRoutes.js"
 
 // Load environment variables based on NODE_ENV
 const envFile =
@@ -254,7 +255,7 @@ app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
     const { sort, cursor } = req.query
     const pageSize = 9
 
-    let baseQuery = db
+    const initialQuery = db
       .select({
         id: recipesTable.id,
         title: recipesTable.title,
@@ -272,36 +273,41 @@ app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
       )
 
     // Add cursor condition if provided
-    if (cursor && typeof cursor === "string") {
-      const [cursorId, cursorValue] = cursor.split("_")
-      if (sort === "title") {
-        baseQuery = baseQuery.where(
-          or(
-            sql`${recipesTable.title} > ${cursorValue}`,
-            and(
-              sql`${recipesTable.title} = ${cursorValue}`,
-              sql`${recipesTable.id} > ${parseInt(cursorId)}`
-            )
-          )
-        )
-      } else if (sort === "time") {
-        baseQuery = baseQuery.where(
-          or(
-            sql`${recipesTable.totalTimeInMinutes} > ${parseInt(cursorValue)}`,
-            and(
-              sql`${recipesTable.totalTimeInMinutes} = ${parseInt(
-                cursorValue
-              )}`,
-              sql`${recipesTable.id} > ${parseInt(cursorId)}`
-            )
-          )
-        )
-      } else {
-        baseQuery = baseQuery.where(
-          sql`${recipesTable.id} > ${parseInt(cursorId)}`
-        )
-      }
-    }
+    const baseQuery =
+      cursor && typeof cursor === "string"
+        ? (() => {
+            const [cursorId, cursorValue] = cursor.split("_")
+            if (sort === "title") {
+              return initialQuery.where(
+                or(
+                  sql`${recipesTable.title} > ${cursorValue}`,
+                  and(
+                    sql`${recipesTable.title} = ${cursorValue}`,
+                    sql`${recipesTable.id} > ${parseInt(cursorId)}`
+                  )
+                )
+              )
+            } else if (sort === "time") {
+              return initialQuery.where(
+                or(
+                  sql`${recipesTable.totalTimeInMinutes} > ${parseInt(
+                    cursorValue
+                  )}`,
+                  and(
+                    sql`${recipesTable.totalTimeInMinutes} = ${parseInt(
+                      cursorValue
+                    )}`,
+                    sql`${recipesTable.id} > ${parseInt(cursorId)}`
+                  )
+                )
+              )
+            } else {
+              return initialQuery.where(
+                sql`${recipesTable.id} > ${parseInt(cursorId)}`
+              )
+            }
+          })()
+        : initialQuery
 
     // Add sorting
     const sortedQuery =
@@ -358,125 +364,65 @@ app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
 })
 
 // Search recipes (must come before /:id route)
-app.get(
-  "/api/recipes/search",
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { query, sort, cursor } = req.query
-      if (!query || typeof query !== "string") {
-        res.status(400).json({ error: "Search query is required" })
-        return
-      }
+app.get("/api/recipes/search", async (req, res) => {
+  try {
+    const { search } = req.query
+    const page = parseInt(req.query.page as string) || 1
+    const limit = parseInt(req.query.limit as string) || 10
+    const offset = (page - 1) * limit
 
-      const pageSize = 9
+    const searchCondition =
+      typeof search === "string" && search.trim()
+        ? sql`LOWER(${recipesTable.title}) LIKE ${`%${search.toLowerCase()}%`}
+          OR LOWER(${
+            recipesTable.description
+          }) LIKE ${`%${search.toLowerCase()}%`}
+          OR LOWER(${
+            recipesTable.instructions
+          }) LIKE ${`%${search.toLowerCase()}%`}
+          OR EXISTS (
+            SELECT 1 FROM ${recipeIngredientsTable}
+            JOIN ${ingredientsTable} ON ${
+            recipeIngredientsTable.ingredientId
+          } = ${ingredientsTable.id}
+            WHERE ${recipeIngredientsTable.recipeId} = ${recipesTable.id}
+            AND LOWER(${
+              ingredientsTable.name
+            }) LIKE ${`%${search.toLowerCase()}%`}
+          )`
+        : sql`1=1`
 
-      let baseQuery = db
-        .select({
-          id: recipesTable.id,
-          title: recipesTable.title,
-          totalTimeInMinutes: recipesTable.totalTimeInMinutes,
-          numberOfServings: recipesTable.numberOfServings,
-          imageUrl: imagesTable.imageUrl,
-        })
-        .from(recipesTable)
-        .leftJoin(
-          imagesTable,
-          and(
-            eq(imagesTable.recipeId, recipesTable.id),
-            eq(imagesTable.isPrimary, true)
-          )
-        )
-        .where(ilike(recipesTable.title, `%${query}%`))
+    const recipes = await db
+      .select()
+      .from(recipesTable)
+      .where(searchCondition)
+      .limit(limit + 1)
+      .offset(offset)
+      .orderBy(recipesTable.id)
 
-      // Add cursor condition if provided
-      if (cursor && typeof cursor === "string") {
-        const [cursorId, cursorValue] = cursor.split("_")
-        if (sort === "title") {
-          baseQuery = baseQuery.where(
-            or(
-              sql`${recipesTable.title} > ${cursorValue}`,
-              and(
-                sql`${recipesTable.title} = ${cursorValue}`,
-                sql`${recipesTable.id} > ${parseInt(cursorId)}`
-              )
-            )
-          )
-        } else if (sort === "time") {
-          baseQuery = baseQuery.where(
-            or(
-              sql`${recipesTable.totalTimeInMinutes} > ${parseInt(
-                cursorValue
-              )}`,
-              and(
-                sql`${recipesTable.totalTimeInMinutes} = ${parseInt(
-                  cursorValue
-                )}`,
-                sql`${recipesTable.id} > ${parseInt(cursorId)}`
-              )
-            )
-          )
-        } else {
-          baseQuery = baseQuery.where(
-            sql`${recipesTable.id} > ${parseInt(cursorId)}`
-          )
-        }
-      }
+    const hasMore = recipes.length > limit
+    const results = hasMore ? recipes.slice(0, -1) : recipes
 
-      // Add sorting
-      const sortedQuery =
-        typeof sort === "string"
-          ? sort === "title"
-            ? baseQuery.orderBy(
-                sql`${recipesTable.title} asc`,
-                sql`${recipesTable.id} asc`
-              )
-            : sort === "time"
-            ? baseQuery.orderBy(
-                sql`${recipesTable.totalTimeInMinutes} asc`,
-                sql`${recipesTable.id} asc`
-              )
-            : baseQuery.orderBy(sql`${recipesTable.id} asc`)
-          : baseQuery.orderBy(sql`${recipesTable.id} asc`)
+    // Get total count for pagination
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(recipesTable)
+      .where(searchCondition)
 
-      // Get one extra item to determine if there are more results
-      const recipes = await sortedQuery.limit(pageSize + 1)
-
-      // Get total count
-      const [{ count }] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(recipesTable)
-        .where(ilike(recipesTable.title, `%${query}%`))
-
-      const hasMore = recipes.length > pageSize
-      const items = recipes.slice(0, pageSize)
-
-      // Generate next cursor
-      let nextCursor = null
-      if (hasMore && items.length > 0) {
-        const lastItem = items[items.length - 1]
-        if (sort === "title") {
-          nextCursor = `${lastItem.id}_${lastItem.title}`
-        } else if (sort === "time") {
-          nextCursor = `${lastItem.id}_${lastItem.totalTimeInMinutes}`
-        } else {
-          nextCursor = `${lastItem.id}_${lastItem.id}`
-        }
-      }
-
-      res.json({
-        recipes: items,
-        pagination: {
-          total: Number(count),
-          hasMore,
-          nextCursor,
-        },
-      })
-    } catch (error) {
-      console.error("Error searching recipes:", error)
-      res.status(500).json({ error: "Failed to search recipes" })
-    }
+    res.json({
+      recipes: results,
+      pagination: {
+        page,
+        limit,
+        total: count,
+        hasMore,
+      },
+    })
+  } catch (error) {
+    console.error("Error searching recipes:", error)
+    res.status(500).json({ error: "Failed to search recipes" })
   }
-)
+})
 
 // Get recipe by ID (must come after /search route)
 app.get(
@@ -1341,6 +1287,9 @@ app.post("/api/chat", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Internal server error in chat processing" })
   }
 })
+
+// Admin routes
+app.use("/api/admin", adminRoutes)
 
 // Add this after all your API routes, just before app.listen
 // Catch-all route to serve index.html for client-side routing
