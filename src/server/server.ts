@@ -90,7 +90,7 @@ const httpPort = 3000 // Use port 3000 for HTTP since Nginx will handle port 80
 // Configure CORS
 app.use(
   cors({
-    origin: true,
+    origin: FRONTEND_URL,
     credentials: true,
     exposedHeaders: ["Content-Length", "X-Foo", "X-Bar"],
   })
