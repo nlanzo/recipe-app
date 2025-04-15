@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import {
   Box,
   Paper,
@@ -75,7 +75,7 @@ export default function AdminPanel() {
   const [selectedTab, setSelectedTab] = useState(1)
   const navigate = useNavigate()
 
-  const fetchRecipes = async () => {
+  const fetchRecipes = useCallback(async () => {
     setLoading(true)
     try {
       const response = await fetch(
@@ -94,11 +94,11 @@ export default function AdminPanel() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, rowsPerPage, searchTerm])
 
   useEffect(() => {
     fetchRecipes()
-  }, [page, rowsPerPage, searchTerm])
+  }, [fetchRecipes])
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage)
