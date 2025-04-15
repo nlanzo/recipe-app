@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32px" height="32px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <title>ChopChop Recipes</title>
+    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <path d="M12,4 L14,4 L14,28 L12,28 L12,4 Z" fill="#FFA726"/>
+        <path d="M18,4 C19.1045695,4 20,4.8954305 20,6 L20,12 C20,14.209139 18.209139,16 16,16 L16,28 L18,28 L18,16 C20.7614237,16 23,13.7614237 23,11 L23,6 C23,3.23857625 20.7614237,1 18,1 L18,4 Z" fill="#FFA726"/>
+    </g>
+</svg> 

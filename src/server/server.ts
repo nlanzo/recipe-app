@@ -22,7 +22,7 @@ import {
   savedRecipesTable,
   usersTable,
 } from "../db/schema.js"
-import { eq, and, gt, sql, or } from "drizzle-orm"
+import { eq, and, gt, sql } from "drizzle-orm"
 import { AuthService } from "./services/authService.js"
 import { authenticateToken, AuthRequest } from "./middleware/auth.js"
 import bcrypt from "bcrypt"
@@ -252,110 +252,47 @@ const validateRecipeUpdate = async (
 // Get all recipes
 app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { sort, cursor } = req.query
-    const pageSize = 9
-
-    const initialQuery = db
-      .select({
-        id: recipesTable.id,
-        title: recipesTable.title,
-        totalTimeInMinutes: recipesTable.totalTimeInMinutes,
-        numberOfServings: recipesTable.numberOfServings,
-        imageUrl: imagesTable.imageUrl,
-      })
-      .from(recipesTable)
-      .leftJoin(
-        imagesTable,
-        and(
-          eq(imagesTable.recipeId, recipesTable.id),
-          eq(imagesTable.isPrimary, true)
-        )
-      )
-
-    // Add cursor condition if provided
-    const baseQuery =
-      cursor && typeof cursor === "string"
-        ? (() => {
-            const [cursorId, cursorValue] = cursor.split("_")
-            if (sort === "title") {
-              return initialQuery.where(
-                or(
-                  sql`${recipesTable.title} > ${cursorValue}`,
-                  and(
-                    sql`${recipesTable.title} = ${cursorValue}`,
-                    sql`${recipesTable.id} > ${parseInt(cursorId)}`
-                  )
-                )
-              )
-            } else if (sort === "time") {
-              return initialQuery.where(
-                or(
-                  sql`${recipesTable.totalTimeInMinutes} > ${parseInt(
-                    cursorValue
-                  )}`,
-                  and(
-                    sql`${recipesTable.totalTimeInMinutes} = ${parseInt(
-                      cursorValue
-                    )}`,
-                    sql`${recipesTable.id} > ${parseInt(cursorId)}`
-                  )
-                )
-              )
-            } else {
-              return initialQuery.where(
-                sql`${recipesTable.id} > ${parseInt(cursorId)}`
-              )
-            }
-          })()
-        : initialQuery
-
-    // Add sorting
-    const sortedQuery =
-      typeof sort === "string"
-        ? sort === "title"
-          ? baseQuery.orderBy(
-              sql`${recipesTable.title} asc`,
-              sql`${recipesTable.id} asc`
-            )
-          : sort === "time"
-          ? baseQuery.orderBy(
-              sql`${recipesTable.totalTimeInMinutes} asc`,
-              sql`${recipesTable.id} asc`
-            )
-          : baseQuery.orderBy(sql`${recipesTable.id} asc`)
-        : baseQuery.orderBy(sql`${recipesTable.id} asc`)
-
-    // Get one extra item to determine if there are more results
-    const recipes = await sortedQuery.limit(pageSize + 1)
+    const page = parseInt(req.query.page as string) || 1
+    const limit = parseInt(req.query.limit as string) || 10
+    const offset = (page - 1) * limit
+    const search = (req.query.search as string) || ""
 
     // Get total count
     const [{ count }] = await db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql`count(*)`.mapWith(Number) })
       .from(recipesTable)
+      .where(
+        search
+          ? sql`LOWER(${recipesTable.title}) LIKE LOWER(${"%" + search + "%"})`
+          : sql`1=1`
+      )
 
-    const hasMore = recipes.length > pageSize
-    const items = recipes.slice(0, pageSize)
-
-    // Generate next cursor
-    let nextCursor = null
-    if (hasMore && items.length > 0) {
-      const lastItem = items[items.length - 1]
-      if (sort === "title") {
-        nextCursor = `${lastItem.id}_${lastItem.title}`
-      } else if (sort === "time") {
-        nextCursor = `${lastItem.id}_${lastItem.totalTimeInMinutes}`
-      } else {
-        nextCursor = `${lastItem.id}_${lastItem.id}`
-      }
-    }
+    // Get paginated recipes
+    const recipes = await db
+      .select({
+        id: recipesTable.id,
+        name: recipesTable.title,
+        username: usersTable.username,
+        createdAt: recipesTable.createdAt,
+        totalTimeInMinutes: recipesTable.totalTimeInMinutes,
+        numberOfServings: recipesTable.numberOfServings,
+      })
+      .from(recipesTable)
+      .leftJoin(usersTable, eq(usersTable.id, recipesTable.userId))
+      .where(
+        search
+          ? sql`LOWER(${recipesTable.title}) LIKE LOWER(${"%" + search + "%"})`
+          : sql`1=1`
+      )
+      .limit(limit)
+      .offset(offset)
+      .orderBy(recipesTable.createdAt)
 
     res.json({
-      recipes: items,
-      pagination: {
-        total: Number(count),
-        hasMore,
-        nextCursor,
-      },
+      recipes,
+      total: Number(count),
+      page,
+      limit,
     })
   } catch (error) {
     console.error("Error fetching recipes:", error)

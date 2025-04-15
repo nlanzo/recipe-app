@@ -23,6 +23,19 @@ import SearchIcon from "@mui/icons-material/Search"
 import { useNavigate } from "react-router-dom"
 import { AdminRecipeItem } from "../types/Recipe"
 
+const formatDate = (dateString: string) => {
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
+  } catch {
+    return "Invalid Date"
+  }
+}
+
 interface TabPanelProps {
   children?: React.ReactNode
   index: number
@@ -58,22 +71,28 @@ export default function AdminPanel() {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [searchTerm, setSearchTerm] = useState("")
   const [totalRecipes, setTotalRecipes] = useState(0)
+  const [loading, setLoading] = useState(true)
   const [selectedTab, setSelectedTab] = useState(1)
   const navigate = useNavigate()
 
   const fetchRecipes = async () => {
+    setLoading(true)
     try {
       const response = await fetch(
-        `/api/recipes?page=${
-          page + 1
-        }&limit=${rowsPerPage}&search=${searchTerm}`
+        `/api/recipes?page=${page + 1}&limit=${rowsPerPage}${
+          searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ""
+        }`
       )
       if (!response.ok) throw new Error("Failed to fetch recipes")
       const data = await response.json()
-      setRecipes(data.recipes)
-      setTotalRecipes(data.total)
+      setRecipes(data.recipes || [])
+      setTotalRecipes(data.total || 0)
     } catch (error) {
       console.error("Error fetching recipes:", error)
+      setRecipes([])
+      setTotalRecipes(0)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -111,10 +130,6 @@ export default function AdminPanel() {
     } catch (error) {
       console.error("Error deleting recipe:", error)
     }
-  }
-
-  const handleRecipeClick = (id: number) => {
-    navigate(`/recipes/${id}`)
   }
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,43 +201,57 @@ export default function AdminPanel() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {recipes.map((recipe) => (
-                  <TableRow key={recipe.id}>
-                    <TableCell>{recipe.name}</TableCell>
-                    <TableCell>{recipe.username}</TableCell>
-                    <TableCell>
-                      {new Date(recipe.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>{recipe.totalTimeInMinutes}</TableCell>
-                    <TableCell>{recipe.numberOfServings}</TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        onClick={() => handleEdit(recipe.id)}
-                        color="primary"
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        onClick={() => handleDelete(recipe.id)}
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      Loading...
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : recipes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      No recipes found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  recipes.map((recipe) => (
+                    <TableRow key={recipe.id}>
+                      <TableCell>{recipe.name}</TableCell>
+                      <TableCell>{recipe.username}</TableCell>
+                      <TableCell>{formatDate(recipe.createdAt)}</TableCell>
+                      <TableCell>{recipe.totalTimeInMinutes}</TableCell>
+                      <TableCell>{recipe.numberOfServings}</TableCell>
+                      <TableCell align="right">
+                        <IconButton
+                          onClick={() => handleEdit(recipe.id)}
+                          color="primary"
+                          size="small"
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          onClick={() => handleDelete(recipe.id)}
+                          color="error"
+                          size="small"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={totalRecipes}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+            />
           </TableContainer>
-
-          <TablePagination
-            component="div"
-            count={totalRecipes}
-            page={page}
-            onPageChange={handleChangePage}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
         </TabPanel>
         <TabPanel value={selectedTab} index={2}>
           <Typography>Reports and Analytics Coming Soon</Typography>
