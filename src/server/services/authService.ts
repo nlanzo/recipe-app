@@ -5,12 +5,16 @@ import { usersTable } from "../../db/schema.js"
 import { eq } from "drizzle-orm"
 
 const SALT_ROUNDS = 10
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key" // Make sure to add this to .env
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required")
+}
+const JWT_SECRET = process.env.JWT_SECRET
 
 interface RegisterInput {
   username: string
   email: string
   password: string
+  isAdmin?: boolean
 }
 
 interface LoginInput {
@@ -19,7 +23,12 @@ interface LoginInput {
 }
 
 export class AuthService {
-  static async register({ username, email, password }: RegisterInput) {
+  static async register({
+    username,
+    email,
+    password,
+    isAdmin = false,
+  }: RegisterInput) {
     // Check if user already exists
     const existingUser = await db
       .select()
@@ -41,6 +50,7 @@ export class AuthService {
         username,
         email,
         passwordHash,
+        isAdmin,
       })
       .returning()
 
