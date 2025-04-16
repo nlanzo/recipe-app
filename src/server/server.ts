@@ -252,12 +252,61 @@ const validateRecipeUpdate = async (
 // Get all recipes
 app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1
-    const limit = parseInt(req.query.limit as string) || 10
-    const offset = (page - 1) * limit
+    const { sort, cursor } = req.query
+    const limit = 10
     const search = (req.query.search as string) || ""
 
-    // Get total count
+    // Build the where condition
+    let whereCondition = search
+      ? sql`LOWER(${recipesTable.title}) LIKE LOWER(${"%" + search + "%"})`
+      : sql`1=1`
+
+    // Add cursor condition if provided
+    if (cursor && typeof cursor === "string") {
+      const [cursorId, cursorValue] = cursor.split("_")
+      const cursorCondition =
+        sort === "title"
+          ? sql`(${recipesTable.title} > ${cursorValue} OR 
+             (${recipesTable.title} = ${cursorValue} AND ${
+              recipesTable.id
+            } > ${parseInt(cursorId)}))`
+          : sql`(${recipesTable.createdAt} < ${cursorValue} OR 
+             (${recipesTable.createdAt} = ${cursorValue} AND ${
+              recipesTable.id
+            } > ${parseInt(cursorId)}))`
+      whereCondition = sql`${whereCondition} AND ${cursorCondition}`
+    }
+
+    // Build and execute the query with order by clause
+    const recipes = await db
+      .select({
+        id: recipesTable.id,
+        title: recipesTable.title,
+        username: usersTable.username,
+        createdAt: recipesTable.createdAt,
+        totalTimeInMinutes: recipesTable.totalTimeInMinutes,
+        numberOfServings: recipesTable.numberOfServings,
+        imageUrl: imagesTable.imageUrl,
+      })
+      .from(recipesTable)
+      .leftJoin(usersTable, eq(usersTable.id, recipesTable.userId))
+      .leftJoin(
+        imagesTable,
+        and(
+          eq(imagesTable.recipeId, recipesTable.id),
+          eq(imagesTable.isPrimary, true)
+        )
+      )
+      .where(whereCondition)
+      .$dynamic()
+      .orderBy(
+        sort === "title"
+          ? sql`${recipesTable.title} asc, ${recipesTable.id} asc`
+          : sql`${recipesTable.createdAt} desc, ${recipesTable.id} asc`
+      )
+      .limit(limit + 1)
+
+    // Get total count (without cursor)
     const [{ count }] = await db
       .select({ count: sql`count(*)`.mapWith(Number) })
       .from(recipesTable)
@@ -267,32 +316,27 @@ app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
           : sql`1=1`
       )
 
-    // Get paginated recipes
-    const recipes = await db
-      .select({
-        id: recipesTable.id,
-        name: recipesTable.title,
-        username: usersTable.username,
-        createdAt: recipesTable.createdAt,
-        totalTimeInMinutes: recipesTable.totalTimeInMinutes,
-        numberOfServings: recipesTable.numberOfServings,
-      })
-      .from(recipesTable)
-      .leftJoin(usersTable, eq(usersTable.id, recipesTable.userId))
-      .where(
-        search
-          ? sql`LOWER(${recipesTable.title}) LIKE LOWER(${"%" + search + "%"})`
-          : sql`1=1`
-      )
-      .limit(limit)
-      .offset(offset)
-      .orderBy(recipesTable.createdAt)
+    const hasMore = recipes.length > limit
+    const items = recipes.slice(0, limit)
+
+    // Generate nextCursor
+    let nextCursor = null
+    if (hasMore && items.length > 0) {
+      const lastItem = items[items.length - 1]
+      if (sort === "title") {
+        nextCursor = `${lastItem.id}_${lastItem.title}`
+      } else {
+        nextCursor = `${lastItem.id}_${lastItem.createdAt.toISOString()}`
+      }
+    }
 
     res.json({
-      recipes,
-      total: Number(count),
-      page,
-      limit,
+      recipes: items,
+      pagination: {
+        total: Number(count),
+        hasMore,
+        nextCursor,
+      },
     })
   } catch (error) {
     console.error("Error fetching recipes:", error)
