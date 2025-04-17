@@ -22,7 +22,7 @@ const settings = ["Profile", "Account", "Logout"]
 
 export default function Navbar() {
   const { isDarkMode, toggleTheme } = useTheme()
-  const { isAuthenticated, logout } = useAuth()
+  const { isAuthenticated, user, logout } = useAuth()
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null)
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(
     null
@@ -197,6 +197,20 @@ export default function Navbar() {
                 Add Recipe
               </Typography>
             </MenuItem>
+            {user?.isAdmin && (
+              <MenuItem onClick={handleCloseNavMenu}>
+                <Typography
+                  sx={{
+                    color: "secondary.main",
+                    textDecoration: "none",
+                  }}
+                  component={Link}
+                  to="/admin"
+                >
+                  Admin Panel
+                </Typography>
+              </MenuItem>
+            )}
             <MenuItem onClick={handleCloseNavMenu}>
               <Typography
                 sx={{
@@ -209,86 +223,75 @@ export default function Navbar() {
                 About Us
               </Typography>
             </MenuItem>
-            {!isAuthenticated && (
-              <MenuItem onClick={handleCloseNavMenu}>
-                <Typography
-                  sx={{
-                    color: "secondary.main",
-                    textDecoration: "none",
-                  }}
-                  component={Link}
-                  to="/login"
-                >
-                  Login
-                </Typography>
-              </MenuItem>
-            )}
-            {!isAuthenticated && (
-              <MenuItem onClick={handleCloseNavMenu}>
-                <Typography
-                  sx={{
-                    color: "secondary.main",
-                    textDecoration: "none",
-                  }}
-                  component={Link}
-                  to="/register"
-                >
-                  Register
-                </Typography>
-              </MenuItem>
-            )}
           </Menu>
 
-          <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
+          <Box
+            sx={{
+              flexGrow: 1,
+              display: { xs: "none", md: "flex" },
+              gap: 2,
+              justifyContent: "center",
+            }}
+          >
             <Button
-              onClick={handleCloseNavMenu}
-              sx={{
-                my: 2,
-                color: "secondary.main",
-                ":hover": { color: "white" },
-                display: "block",
-              }}
               component={Link}
               to="/recipes"
-            >
-              Explore Recipes
-            </Button>
-            <Button
               onClick={handleCloseNavMenu}
               sx={{
-                my: 2,
                 color: "secondary.main",
-                ":hover": { color: "white" },
                 display: "block",
+                ":hover": { color: "white" },
               }}
+            >
+              Recipes
+            </Button>
+            <Button
               component={Link}
               to="/chat"
+              onClick={handleCloseNavMenu}
+              sx={{
+                color: "secondary.main",
+                display: "block",
+                ":hover": { color: "white" },
+              }}
             >
               Recipe Assistant
             </Button>
             <Button
-              onClick={handleCloseNavMenu}
-              sx={{
-                my: 2,
-                color: "secondary.main",
-                ":hover": { color: "white" },
-                display: "block",
-              }}
               component={Link}
               to="/add"
+              onClick={handleCloseNavMenu}
+              sx={{
+                color: "secondary.main",
+                display: "block",
+                ":hover": { color: "white" },
+              }}
             >
               Add Recipe
             </Button>
+            {user?.isAdmin && (
+              <Button
+                component={Link}
+                to="/admin"
+                onClick={handleCloseNavMenu}
+                sx={{
+                  color: "secondary.main",
+                  display: "block",
+                  ":hover": { color: "white" },
+                }}
+              >
+                Admin Panel
+              </Button>
+            )}
             <Button
-              onClick={handleCloseNavMenu}
-              sx={{
-                my: 2,
-                color: "secondary.main",
-                ":hover": { color: "white" },
-                display: "block",
-              }}
               component={Link}
               to="/about"
+              onClick={handleCloseNavMenu}
+              sx={{
+                color: "secondary.main",
+                display: "block",
+                ":hover": { color: "white" },
+              }}
             >
               About Us
             </Button>
