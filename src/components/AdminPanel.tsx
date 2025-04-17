@@ -16,12 +16,21 @@ import {
   Tabs,
   Tab,
   Container,
+  Chip,
 } from "@mui/material"
 import DeleteIcon from "@mui/icons-material/Delete"
 import EditIcon from "@mui/icons-material/Edit"
 import SearchIcon from "@mui/icons-material/Search"
 import { useNavigate } from "react-router-dom"
 import { AdminRecipeItem } from "../types/Recipe"
+
+interface User {
+  id: number
+  username: string
+  email: string
+  createdAt: string
+  isAdmin: boolean
+}
 
 const formatDate = (dateString: string) => {
   try {
@@ -67,21 +76,56 @@ function a11yProps(index: number) {
 
 export default function AdminPanel() {
   const [recipes, setRecipes] = useState<AdminRecipeItem[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [searchTerm, setSearchTerm] = useState("")
   const [totalRecipes, setTotalRecipes] = useState(0)
+  const [totalUsers, setTotalUsers] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [selectedTab, setSelectedTab] = useState(1)
+  const [selectedTab, setSelectedTab] = useState(0)
   const navigate = useNavigate()
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true)
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(
+        `/api/admin/users?page=${page}&limit=${rowsPerPage}${
+          searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ""
+        }`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      if (!response.ok) throw new Error("Failed to fetch users")
+      const data = await response.json()
+      setUsers(data.users || [])
+      setTotalUsers(data.total || 0)
+    } catch (error) {
+      console.error("Error fetching users:", error)
+      setUsers([])
+      setTotalUsers(0)
+    } finally {
+      setLoading(false)
+    }
+  }, [page, rowsPerPage, searchTerm])
 
   const fetchRecipes = useCallback(async () => {
     setLoading(true)
     try {
+      const token = localStorage.getItem("token")
       const response = await fetch(
         `/api/recipes?page=${page + 1}&limit=${rowsPerPage}${
           searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ""
-        }`
+        }`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       )
       if (!response.ok) throw new Error("Failed to fetch recipes")
       const data = await response.json()
@@ -97,8 +141,12 @@ export default function AdminPanel() {
   }, [page, rowsPerPage, searchTerm])
 
   useEffect(() => {
-    fetchRecipes()
-  }, [fetchRecipes])
+    if (selectedTab === 0) {
+      fetchUsers()
+    } else if (selectedTab === 1) {
+      fetchRecipes()
+    }
+  }, [selectedTab, fetchUsers, fetchRecipes])
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage)
@@ -139,6 +187,8 @@ export default function AdminPanel() {
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setSelectedTab(newValue)
+    setPage(0)
+    setSearchTerm("")
   }
 
   return (
@@ -165,7 +215,77 @@ export default function AdminPanel() {
           </Tabs>
         </Box>
         <TabPanel value={selectedTab} index={0}>
-          <Typography>User Management Coming Soon</Typography>
+          <Typography variant="h4" gutterBottom>
+            User Management
+          </Typography>
+
+          <TextField
+            fullWidth
+            variant="outlined"
+            placeholder="Search users..."
+            value={searchTerm}
+            onChange={handleSearch}
+            sx={{ mb: 3 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Username</TableCell>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Created</TableCell>
+                  <TableCell>Role</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      Loading...
+                    </TableCell>
+                  </TableRow>
+                ) : users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      No users found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.username}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{formatDate(user.createdAt)}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={user.isAdmin ? "Admin" : "User"}
+                          color={user.isAdmin ? "primary" : "default"}
+                          size="small"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25]}
+              component="div"
+              count={selectedTab === 0 ? totalUsers : totalRecipes}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+            />
+          </TableContainer>
         </TabPanel>
         <TabPanel value={selectedTab} index={1}>
           <Typography variant="h4" gutterBottom>
