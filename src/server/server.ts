@@ -347,20 +347,20 @@ app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
 // Search recipes (must come before /:id route)
 app.get("/api/recipes/search", async (req, res) => {
   try {
-    const { search } = req.query
+    const { query } = req.query
     const page = parseInt(req.query.page as string) || 1
     const limit = parseInt(req.query.limit as string) || 10
     const offset = (page - 1) * limit
 
     const searchCondition =
-      typeof search === "string" && search.trim()
-        ? sql`LOWER(${recipesTable.title}) LIKE ${`%${search.toLowerCase()}%`}
+      typeof query === "string" && query.trim()
+        ? sql`LOWER(${recipesTable.title}) LIKE ${`%${query.toLowerCase()}%`}
           OR LOWER(${
             recipesTable.description
-          }) LIKE ${`%${search.toLowerCase()}%`}
+          }) LIKE ${`%${query.toLowerCase()}%`}
           OR LOWER(${
             recipesTable.instructions
-          }) LIKE ${`%${search.toLowerCase()}%`}
+          }) LIKE ${`%${query.toLowerCase()}%`}
           OR EXISTS (
             SELECT 1 FROM ${recipeIngredientsTable}
             JOIN ${ingredientsTable} ON ${
@@ -369,13 +369,27 @@ app.get("/api/recipes/search", async (req, res) => {
             WHERE ${recipeIngredientsTable.recipeId} = ${recipesTable.id}
             AND LOWER(${
               ingredientsTable.name
-            }) LIKE ${`%${search.toLowerCase()}%`}
+            }) LIKE ${`%${query.toLowerCase()}%`}
           )`
         : sql`1=1`
 
     const recipes = await db
-      .select()
+      .select({
+        id: recipesTable.id,
+        title: recipesTable.title,
+        description: recipesTable.description,
+        totalTimeInMinutes: recipesTable.totalTimeInMinutes,
+        numberOfServings: recipesTable.numberOfServings,
+        imageUrl: imagesTable.imageUrl,
+      })
       .from(recipesTable)
+      .leftJoin(
+        imagesTable,
+        and(
+          eq(imagesTable.recipeId, recipesTable.id),
+          eq(imagesTable.isPrimary, true)
+        )
+      )
       .where(searchCondition)
       .limit(limit + 1)
       .offset(offset)
