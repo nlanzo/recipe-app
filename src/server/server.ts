@@ -252,30 +252,16 @@ const validateRecipeUpdate = async (
 // Get all recipes
 app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { sort, cursor } = req.query
-    const limit = 10
+    const { sort } = req.query
+    const page = parseInt(req.query.page as string) || 1
+    const limit = 9
+    const offset = (page - 1) * limit
     const search = (req.query.search as string) || ""
 
     // Build the where condition
-    let whereCondition = search
+    const whereCondition = search
       ? sql`LOWER(${recipesTable.title}) LIKE LOWER(${"%" + search + "%"})`
       : sql`1=1`
-
-    // Add cursor condition if provided
-    if (cursor && typeof cursor === "string") {
-      const [cursorId, cursorValue] = cursor.split("_")
-      const cursorCondition =
-        sort === "title"
-          ? sql`(${recipesTable.title} > ${cursorValue} OR 
-             (${recipesTable.title} = ${cursorValue} AND ${
-              recipesTable.id
-            } > ${parseInt(cursorId)}))`
-          : sql`(${recipesTable.createdAt} < ${cursorValue} OR 
-             (${recipesTable.createdAt} = ${cursorValue} AND ${
-              recipesTable.id
-            } > ${parseInt(cursorId)}))`
-      whereCondition = sql`${whereCondition} AND ${cursorCondition}`
-    }
 
     // Build and execute the query with order by clause
     const recipes = await db
@@ -301,9 +287,10 @@ app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
       .$dynamic()
       .orderBy(
         sort === "title"
-          ? sql`${recipesTable.title} asc, ${recipesTable.id} asc`
-          : sql`${recipesTable.createdAt} desc, ${recipesTable.id} asc`
+          ? sql`${recipesTable.title} asc NULLS LAST, ${recipesTable.id} asc`
+          : sql`${recipesTable.createdAt} desc NULLS LAST, ${recipesTable.id} asc`
       )
+      .offset(offset)
       .limit(limit + 1)
 
     // Get total count (without cursor)
@@ -319,23 +306,13 @@ app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
     const hasMore = recipes.length > limit
     const items = recipes.slice(0, limit)
 
-    // Generate nextCursor
-    let nextCursor = null
-    if (hasMore && items.length > 0) {
-      const lastItem = items[items.length - 1]
-      if (sort === "title") {
-        nextCursor = `${lastItem.id}_${lastItem.title}`
-      } else {
-        nextCursor = `${lastItem.id}_${lastItem.createdAt.toISOString()}`
-      }
-    }
-
     res.json({
       recipes: items,
       pagination: {
         total: Number(count),
         hasMore,
-        nextCursor,
+        currentPage: page,
+        totalPages: Math.ceil(Number(count) / limit),
       },
     })
   } catch (error) {
@@ -348,9 +325,10 @@ app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
 app.get("/api/recipes/search", async (req, res) => {
   try {
     const { query } = req.query
-    const page = parseInt(req.query.page as string) || 1
-    const limit = parseInt(req.query.limit as string) || 10
+    const page = Math.max(1, parseInt(req.query.page as string) || 1)
+    const limit = 9
     const offset = (page - 1) * limit
+    const sort = req.query.sort as string
 
     const searchCondition =
       typeof query === "string" && query.trim()
@@ -391,12 +369,13 @@ app.get("/api/recipes/search", async (req, res) => {
         )
       )
       .where(searchCondition)
+      .orderBy(
+        sort === "title"
+          ? sql`${recipesTable.title} asc NULLS LAST, ${recipesTable.id} asc`
+          : sql`${recipesTable.createdAt} desc NULLS LAST, ${recipesTable.id} asc`
+      )
       .limit(limit + 1)
       .offset(offset)
-      .orderBy(recipesTable.id)
-
-    const hasMore = recipes.length > limit
-    const results = hasMore ? recipes.slice(0, -1) : recipes
 
     // Get total count for pagination
     const [{ count }] = await db
@@ -404,13 +383,16 @@ app.get("/api/recipes/search", async (req, res) => {
       .from(recipesTable)
       .where(searchCondition)
 
+    const hasMore = recipes.length > limit
+    const items = recipes.slice(0, limit)
+
     res.json({
-      recipes: results,
+      recipes: items,
       pagination: {
-        page,
-        limit,
-        total: count,
+        total: Number(count),
         hasMore,
+        currentPage: page,
+        totalPages: Math.ceil(Number(count) / limit),
       },
     })
   } catch (error) {

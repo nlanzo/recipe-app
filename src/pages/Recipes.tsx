@@ -29,7 +29,8 @@ interface RecipeResponse {
   pagination: {
     total: number
     hasMore: boolean
-    nextCursor: string | null
+    currentPage: number
+    totalPages: number
   }
 }
 
@@ -41,24 +42,29 @@ export default function Recipes() {
   const [error, setError] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<SortOption>("")
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const debouncedSearch = useDebounce(searchQuery, 500)
 
   const fetchRecipes = useCallback(
-    async (cursor: string | null = null, isLoadingMore = false) => {
+    async (page: number = 1, isLoadingMore = false) => {
       if (!isLoadingMore) {
         setLoading(true)
       }
       try {
+        // Build URL parameters
+        const params = new URLSearchParams()
+        params.append("page", String(page))
+        if (sortBy) params.append("sort", sortBy)
+
+        // Choose endpoint and add search query if needed
         const url = debouncedSearch
-          ? `/api/recipes/search?query=${encodeURIComponent(debouncedSearch)}${
-              sortBy ? `&sort=${sortBy}` : ""
-            }${cursor ? `&cursor=${cursor}` : ""}`
-          : `/api/recipes${sortBy ? `?sort=${sortBy}` : ""}${
-              cursor ? `${sortBy ? "&" : "?"}cursor=${cursor}` : ""
-            }`
+          ? `/api/recipes/search?${params.toString()}&query=${encodeURIComponent(
+              debouncedSearch
+            )}`
+          : `/api/recipes?${params.toString()}`
+
         const response = await fetch(url)
         if (!response.ok) {
           throw new Error("Failed to fetch recipes")
@@ -69,7 +75,7 @@ export default function Recipes() {
         } else {
           setRecipes(data.recipes)
         }
-        setNextCursor(data.pagination.nextCursor)
+        setCurrentPage(data.pagination.currentPage)
         setHasMore(data.pagination.hasMore)
         setError("")
       } catch (err) {
@@ -84,8 +90,8 @@ export default function Recipes() {
   )
 
   useEffect(() => {
-    setNextCursor(null)
-    fetchRecipes(null)
+    setCurrentPage(1)
+    fetchRecipes(1)
   }, [debouncedSearch, sortBy, fetchRecipes])
 
   const handleScroll = useCallback(() => {
@@ -93,12 +99,12 @@ export default function Recipes() {
       window.innerHeight + document.documentElement.scrollTop ===
       document.documentElement.offsetHeight
     ) {
-      if (hasMore && !isLoadingMore && !loading && nextCursor) {
+      if (hasMore && !isLoadingMore && !loading) {
         setIsLoadingMore(true)
-        fetchRecipes(nextCursor, true)
+        fetchRecipes(currentPage + 1, true)
       }
     }
-  }, [hasMore, isLoadingMore, loading, nextCursor, fetchRecipes])
+  }, [hasMore, isLoadingMore, loading, currentPage, fetchRecipes])
 
   useEffect(() => {
     window.addEventListener("scroll", handleScroll)
