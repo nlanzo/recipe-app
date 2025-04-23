@@ -23,6 +23,7 @@ import EditIcon from "@mui/icons-material/Edit"
 import SearchIcon from "@mui/icons-material/Search"
 import { useNavigate } from "react-router-dom"
 import { AdminRecipeItem } from "../types/Recipe"
+import { authenticatedFetch } from "../utils/auth"
 
 interface User {
   id: number
@@ -89,18 +90,14 @@ export default function AdminPanel() {
   const fetchUsers = useCallback(async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(
+      const response = await authenticatedFetch(
         `/api/admin/users?page=${page}&limit=${rowsPerPage}${
           searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ""
-        }`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        }`
       )
+
       if (!response.ok) throw new Error("Failed to fetch users")
+
       const data = await response.json()
       setUsers(data.users || [])
       setTotalUsers(data.total || 0)
@@ -116,18 +113,14 @@ export default function AdminPanel() {
   const fetchRecipes = useCallback(async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem("token")
-      const response = await fetch(
+      const response = await authenticatedFetch(
         `/api/recipes?page=${page + 1}&limit=${rowsPerPage}${
           searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ""
-        }`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        }`
       )
+
       if (!response.ok) throw new Error("Failed to fetch recipes")
+
       const data = await response.json()
       setRecipes(data.recipes || [])
       setTotalRecipes(data.total || 0)
@@ -167,9 +160,12 @@ export default function AdminPanel() {
     if (!window.confirm("Are you sure you want to delete this recipe?")) return
 
     try {
-      const response = await fetch(`/api/recipes/${recipeId}`, {
-        method: "DELETE",
-      })
+      const response = await authenticatedFetch(
+        `/api/admin/recipes/${recipeId}`,
+        {
+          method: "DELETE",
+        }
+      )
 
       if (!response.ok) throw new Error("Failed to delete recipe")
 

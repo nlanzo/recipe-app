@@ -35,7 +35,7 @@ export function useDataLoader<T>(url: string) {
             setData(null)
             return
           }
-          response = await authenticatedFetch(url, token, {
+          response = await authenticatedFetch(url, {
             signal: abortController.signal,
           })
         }

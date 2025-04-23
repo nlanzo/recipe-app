@@ -2,6 +2,7 @@
 import express, { Request, Response, NextFunction } from "express"
 import cors from "cors"
 import multer from "multer"
+import cookieParser from "cookie-parser"
 import {
   DeleteObjectCommand,
   DeleteObjectsCommand,
@@ -88,7 +89,7 @@ type AsyncRequestHandler = (req: Request, res: Response) => Promise<void>
 const app = express()
 const httpPort = 3000 // Use port 3000 for HTTP since Nginx will handle port 80
 
-// Configure CORS
+// Configure CORS with credentials
 app.use(
   cors({
     origin: FRONTEND_URL,
@@ -98,6 +99,7 @@ app.use(
 )
 
 app.use(express.json())
+app.use(cookieParser()) // Add cookie-parser middleware
 
 // Create server
 const httpServer = http.createServer(app)
@@ -1051,7 +1053,20 @@ app.post("/api/auth/register", async (req, res) => {
   try {
     const { username, email, password } = req.body
     const result = await AuthService.register({ username, email, password })
-    res.json(result)
+
+    // Set refresh token in HTTP-only cookie
+    res.cookie("refreshToken", result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    })
+
+    // Send access token in response
+    res.json({
+      user: result.user,
+      accessToken: result.accessToken,
+    })
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Registration failed"
@@ -1063,10 +1078,61 @@ app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body
     const result = await AuthService.login({ email, password })
-    res.json(result)
+
+    // Set refresh token in HTTP-only cookie
+    res.cookie("refreshToken", result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    })
+
+    // Send access token in response
+    res.json({
+      user: result.user,
+      accessToken: result.accessToken,
+    })
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Login failed"
     res.status(401).json({ error: errorMessage })
+  }
+})
+
+app.post("/api/auth/refresh", async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken
+    if (!refreshToken) {
+      throw new Error("No refresh token provided")
+    }
+
+    const accessToken = await AuthService.refreshAccessToken(refreshToken)
+    res.json({ accessToken })
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Token refresh failed"
+    res.status(401).json({ error: errorMessage })
+  }
+})
+
+app.post("/api/auth/logout", async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken
+    if (refreshToken) {
+      await AuthService.logout(refreshToken)
+    }
+
+    // Clear the refresh token cookie
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    })
+
+    res.json({ message: "Logged out successfully" })
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Logout failed"
+    res.status(500).json({ error: errorMessage })
   }
 })
 

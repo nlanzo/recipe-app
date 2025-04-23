@@ -6,6 +6,7 @@ import {
   text,
   timestamp,
   boolean,
+  index,
 } from "drizzle-orm/pg-core"
 
 import { relations } from "drizzle-orm"
@@ -21,6 +22,24 @@ export const usersTable = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
+
+export const refreshTokensTable = pgTable(
+  "refresh_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => usersTable.id, { onDelete: "cascade" })
+      .notNull(),
+    tokenHash: varchar("token_hash", { length: 255 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    revoked: boolean("revoked").default(false).notNull(),
+  },
+  (table) => ({
+    tokenHashIndex: index("token_hash_idx").on(table.tokenHash),
+    userIdIndex: index("user_id_idx").on(table.userId),
+  })
+)
 
 export const recipesTable = pgTable("recipes", {
   id: serial("id").primaryKey(),
@@ -103,6 +122,7 @@ export const savedRecipesTable = pgTable("saved_recipes", {
 export const userRelations = relations(usersTable, ({ many }) => ({
   recipes: many(recipesTable),
   savedRecipes: many(savedRecipesTable),
+  refreshTokens: many(refreshTokensTable),
 }))
 
 export const recipeRelations = relations(recipesTable, ({ many, one }) => ({
