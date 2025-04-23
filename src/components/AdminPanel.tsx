@@ -160,14 +160,14 @@ export default function AdminPanel() {
   }
 
   const handleEdit = (recipeId: number) => {
-    navigate(`/admin/recipes/${recipeId}/edit`)
+    navigate(`/recipes/${recipeId}/edit`)
   }
 
   const handleDelete = async (recipeId: number) => {
     if (!window.confirm("Are you sure you want to delete this recipe?")) return
 
     try {
-      const response = await fetch(`/api/admin/recipes/${recipeId}`, {
+      const response = await fetch(`/api/recipes/${recipeId}`, {
         method: "DELETE",
       })
 
@@ -315,32 +315,28 @@ export default function AdminPanel() {
                   <TableCell>Title</TableCell>
                   <TableCell>Author</TableCell>
                   <TableCell>Created</TableCell>
-                  <TableCell>Time (min)</TableCell>
-                  <TableCell>Servings</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
+                    <TableCell colSpan={4} align="center">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : recipes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
+                    <TableCell colSpan={4} align="center">
                       No recipes found
                     </TableCell>
                   </TableRow>
                 ) : (
                   recipes.map((recipe) => (
                     <TableRow key={recipe.id}>
-                      <TableCell>{recipe.name}</TableCell>
+                      <TableCell>{recipe.title}</TableCell>
                       <TableCell>{recipe.username}</TableCell>
                       <TableCell>{formatDate(recipe.createdAt)}</TableCell>
-                      <TableCell>{recipe.totalTimeInMinutes}</TableCell>
-                      <TableCell>{recipe.numberOfServings}</TableCell>
                       <TableCell align="right">
                         <IconButton
                           onClick={() => handleEdit(recipe.id)}

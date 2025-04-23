@@ -38,9 +38,7 @@ export interface RecipeListItem {
 // For admin table view
 export interface AdminRecipeItem {
   id: number
-  name: string
+  title: string
   username: string
   createdAt: string
-  totalTimeInMinutes: number
-  numberOfServings: number
 }
