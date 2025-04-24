@@ -24,6 +24,7 @@ import SearchIcon from "@mui/icons-material/Search"
 import { useNavigate } from "react-router-dom"
 import { AdminRecipeItem } from "../types/Recipe"
 import { authenticatedFetch } from "../utils/api"
+import { useDebounce } from "../hooks/useDebounce"
 
 interface User {
   id: number
@@ -87,12 +88,17 @@ export default function AdminPanel() {
   const [selectedTab, setSelectedTab] = useState(0)
   const navigate = useNavigate()
 
+  // Apply 500ms debounce to the search term
+  const debouncedSearchTerm = useDebounce(searchTerm, 500)
+
   const fetchUsers = useCallback(async () => {
     setLoading(true)
     try {
       const response = await authenticatedFetch(
         `/api/admin/users?page=${page + 1}&limit=${rowsPerPage}${
-          searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ""
+          debouncedSearchTerm
+            ? `&search=${encodeURIComponent(debouncedSearchTerm)}`
+            : ""
         }`
       )
 
@@ -110,14 +116,16 @@ export default function AdminPanel() {
     } finally {
       setLoading(false)
     }
-  }, [page, rowsPerPage, searchTerm])
+  }, [page, rowsPerPage, debouncedSearchTerm])
 
   const fetchRecipes = useCallback(async () => {
     setLoading(true)
     try {
       const response = await authenticatedFetch(
         `/api/admin/recipes?page=${page + 1}&limit=${rowsPerPage}${
-          searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ""
+          debouncedSearchTerm
+            ? `&search=${encodeURIComponent(debouncedSearchTerm)}`
+            : ""
         }`
       )
 
@@ -135,7 +143,7 @@ export default function AdminPanel() {
     } finally {
       setLoading(false)
     }
-  }, [page, rowsPerPage, searchTerm])
+  }, [page, rowsPerPage, debouncedSearchTerm])
 
   useEffect(() => {
     if (selectedTab === 0) {
@@ -144,6 +152,11 @@ export default function AdminPanel() {
       fetchRecipes()
     }
   }, [selectedTab, fetchUsers, fetchRecipes])
+
+  // Reset to page 0 when search term changes
+  useEffect(() => {
+    setPage(0)
+  }, [debouncedSearchTerm])
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage)
@@ -182,7 +195,7 @@ export default function AdminPanel() {
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value)
-    setPage(0)
+    // No need to reset page here since we're using debounce
   }
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
