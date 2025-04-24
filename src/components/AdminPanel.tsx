@@ -23,7 +23,7 @@ import EditIcon from "@mui/icons-material/Edit"
 import SearchIcon from "@mui/icons-material/Search"
 import { useNavigate } from "react-router-dom"
 import { AdminRecipeItem } from "../types/Recipe"
-import { authenticatedFetch } from "../utils/auth"
+import { authenticatedFetch } from "../utils/api"
 
 interface User {
   id: number
@@ -91,18 +91,20 @@ export default function AdminPanel() {
     setLoading(true)
     try {
       const response = await authenticatedFetch(
-        `/api/admin/users?page=${page}&limit=${rowsPerPage}${
+        `/api/admin/users?page=${page + 1}&limit=${rowsPerPage}${
           searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ""
         }`
       )
 
-      if (!response.ok) throw new Error("Failed to fetch users")
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
 
       const data = await response.json()
       setUsers(data.users || [])
       setTotalUsers(data.total || 0)
     } catch (error) {
-      console.error("Error fetching users:", error)
+      console.error("Failed to fetch users:", error)
       setUsers([])
       setTotalUsers(0)
     } finally {
@@ -114,18 +116,20 @@ export default function AdminPanel() {
     setLoading(true)
     try {
       const response = await authenticatedFetch(
-        `/api/recipes?page=${page + 1}&limit=${rowsPerPage}${
+        `/api/admin/recipes?page=${page + 1}&limit=${rowsPerPage}${
           searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : ""
         }`
       )
 
-      if (!response.ok) throw new Error("Failed to fetch recipes")
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
 
       const data = await response.json()
       setRecipes(data.recipes || [])
       setTotalRecipes(data.total || 0)
     } catch (error) {
-      console.error("Error fetching recipes:", error)
+      console.error("Failed to fetch recipes:", error)
       setRecipes([])
       setTotalRecipes(0)
     } finally {

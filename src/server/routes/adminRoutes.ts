@@ -30,10 +30,10 @@ router.get(
   isAdmin,
   async (req: Request, res: Response) => {
     try {
-      const page = parseInt(req.query.page as string) || 0
+      const page = Math.max(1, parseInt(req.query.page as string) || 1)
       const limit = parseInt(req.query.limit as string) || 10
       const search = (req.query.search as string) || ""
-      const offset = page * limit
+      const offset = (page - 1) * limit
 
       const baseQuery = db
         .select({
@@ -79,6 +79,8 @@ router.get(
       res.json({
         recipes,
         total: Number(count),
+        currentPage: page,
+        totalPages: Math.ceil(Number(count) / limit),
       })
     } catch (error) {
       console.error("Error fetching recipes:", error)
@@ -144,10 +146,10 @@ router.get(
   isAdmin,
   async (req: Request, res: Response) => {
     try {
-      const page = parseInt(req.query.page as string) || 0
+      const page = Math.max(1, parseInt(req.query.page as string) || 1)
       const limit = parseInt(req.query.limit as string) || 10
       const search = (req.query.search as string) || ""
-      const offset = page * limit
+      const offset = (page - 1) * limit
 
       const baseQuery = db
         .select({
@@ -192,8 +194,8 @@ router.get(
       res.json({
         users,
         total: Number(count),
-        page,
-        limit,
+        currentPage: page,
+        totalPages: Math.ceil(Number(count) / limit),
       })
     } catch (error) {
       console.error("Error fetching users:", error)

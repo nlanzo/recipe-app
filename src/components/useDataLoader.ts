@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react"
 import { authenticatedFetch } from "../utils/api"
-import { useAuth } from "../contexts/useAuth"
 
 // Define public routes that don't require authentication
 const publicRoutes = ["/api/recipes", "/api/recipes/"]
@@ -10,7 +9,6 @@ export function useDataLoader<T>(url: string) {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [response, setResponse] = useState<Response | null>(null)
-  const { token } = useAuth()
 
   useEffect(() => {
     const abortController = new AbortController()
@@ -31,10 +29,6 @@ export function useDataLoader<T>(url: string) {
           })
         } else {
           // Use authenticatedFetch for protected routes
-          if (!token) {
-            setData(null)
-            return
-          }
           response = await authenticatedFetch(url, {
             signal: abortController.signal,
           })
@@ -66,7 +60,7 @@ export function useDataLoader<T>(url: string) {
     return () => {
       abortController.abort()
     }
-  }, [url, token])
+  }, [url])
 
   return { data, error, isLoading, response }
 }

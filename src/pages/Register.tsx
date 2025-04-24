@@ -35,6 +35,7 @@ export default function Register() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ username, email, password }),
       })
 
@@ -44,7 +45,7 @@ export default function Register() {
         throw new Error(data.error || "Registration failed")
       }
 
-      login(data.token, data.user)
+      login(data.accessToken, data.user)
       navigate("/")
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
