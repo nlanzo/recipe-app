@@ -3,7 +3,7 @@ let refreshPromise: Promise<string> | null = null
 
 export const getAccessToken = (): string | null => accessToken
 
-export const setAccessToken = (token: string | null) => {
+export const setAccessToken = (token: string | null): void => {
   accessToken = token
   if (token) {
     localStorage.setItem("token", token)
@@ -72,8 +72,8 @@ export const createAuthenticatedFetch = () => {
       headers,
     })
 
-    // If we get a 401, try to refresh the token
-    if (response.status === 401) {
+    // If we get a 401 OR 403, try to refresh the token
+    if (response.status === 401 || response.status === 403) {
       try {
         token = await refreshAccessToken()
 

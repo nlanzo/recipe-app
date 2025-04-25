@@ -18,6 +18,8 @@ import {
   Container,
   Chip,
   Button,
+  Alert,
+  Snackbar,
 } from "@mui/material"
 import DeleteIcon from "@mui/icons-material/Delete"
 import EditIcon from "@mui/icons-material/Edit"
@@ -27,6 +29,7 @@ import { useNavigate } from "react-router-dom"
 import { AdminRecipeItem } from "../types/Recipe"
 import { authenticatedFetch } from "../utils/api"
 import { useDebounce } from "../hooks/useDebounce"
+import { useAuth } from "../contexts/useAuth"
 
 interface User {
   id: number
@@ -94,10 +97,46 @@ export default function AdminPanel() {
   const [userRecipesPage, setUserRecipesPage] = useState(0)
   const [userRecipesPerPage, setUserRecipesPerPage] = useState(10)
   const [userRecipesLoading, setUserRecipesLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [showError, setShowError] = useState(false)
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
   // Apply 500ms debounce to the search term
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
+
+  const handleApiError = useCallback(
+    (error: unknown, operation: string) => {
+      console.error(`Failed to ${operation}:`, error)
+      const message = error instanceof Error ? error.message : String(error)
+
+      if (
+        message.includes("Invalid token") ||
+        message.includes("Authentication required")
+      ) {
+        setError(`Session expired. Attempting to refresh your session...`)
+        setShowError(true)
+
+        // Don't immediately log out - the authenticatedFetch utility should
+        // try to refresh the token automatically
+
+        // If we still see this error after token refresh attempt, something more serious is wrong
+        setTimeout(() => {
+          if (showError) {
+            setError("Could not refresh your session. Please log in again.")
+            setTimeout(() => {
+              logout()
+              navigate("/login")
+            }, 2000)
+          }
+        }, 5000)
+      } else {
+        setError(`Failed to ${operation}: ${message}`)
+        setShowError(true)
+      }
+    },
+    [logout, navigate, showError]
+  )
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -118,13 +157,13 @@ export default function AdminPanel() {
       setUsers(data.users || [])
       setTotalUsers(data.total || 0)
     } catch (error) {
-      console.error("Failed to fetch users:", error)
+      handleApiError(error, "fetch users")
       setUsers([])
       setTotalUsers(0)
     } finally {
       setLoading(false)
     }
-  }, [page, rowsPerPage, debouncedSearchTerm])
+  }, [page, rowsPerPage, debouncedSearchTerm, handleApiError])
 
   const fetchRecipes = useCallback(async () => {
     setLoading(true)
@@ -145,13 +184,13 @@ export default function AdminPanel() {
       setRecipes(data.recipes || [])
       setTotalRecipes(data.total || 0)
     } catch (error) {
-      console.error("Failed to fetch recipes:", error)
+      handleApiError(error, "fetch recipes")
       setRecipes([])
       setTotalRecipes(0)
     } finally {
       setLoading(false)
     }
-  }, [page, rowsPerPage, debouncedSearchTerm])
+  }, [page, rowsPerPage, debouncedSearchTerm, handleApiError])
 
   const fetchUserRecipes = useCallback(
     async (userId: number) => {
@@ -171,14 +210,14 @@ export default function AdminPanel() {
         setUserRecipes(data.recipes || [])
         setTotalUserRecipes(data.total || 0)
       } catch (error) {
-        console.error("Failed to fetch user recipes:", error)
+        handleApiError(error, "fetch user recipes")
         setUserRecipes([])
         setTotalUserRecipes(0)
       } finally {
         setUserRecipesLoading(false)
       }
     },
-    [userRecipesPage, userRecipesPerPage]
+    [userRecipesPage, userRecipesPerPage, handleApiError]
   )
 
   useEffect(() => {
@@ -229,9 +268,13 @@ export default function AdminPanel() {
       if (!response.ok) throw new Error("Failed to delete recipe")
 
       // Refresh the recipes list
-      fetchRecipes()
+      if (selectedUser) {
+        fetchUserRecipes(selectedUser.id)
+      } else {
+        fetchRecipes()
+      }
     } catch (error) {
-      console.error("Error deleting recipe:", error)
+      handleApiError(error, "delete recipe")
     }
   }
 
@@ -345,6 +388,10 @@ export default function AdminPanel() {
         </TableContainer>
       </Box>
     )
+  }
+
+  const handleCloseError = () => {
+    setShowError(false)
   }
 
   return (
@@ -544,6 +591,20 @@ export default function AdminPanel() {
           <Typography>Reports and Analytics Coming Soon</Typography>
         </TabPanel>
       </Paper>
+      <Snackbar
+        open={showError}
+        autoHideDuration={6000}
+        onClose={handleCloseError}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={handleCloseError}
+          severity="error"
+          sx={{ width: "100%" }}
+        >
+          {error}
+        </Alert>
+      </Snackbar>
     </Container>
   )
 }
