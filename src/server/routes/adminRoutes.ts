@@ -204,4 +204,53 @@ router.get(
   }
 )
 
+// Get recipes for a specific user
+router.get(
+  "/users/:userId/recipes",
+  authenticateToken,
+  isAdmin,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId)
+      const page = Math.max(1, parseInt(req.query.page as string) || 1)
+      const limit = parseInt(req.query.limit as string) || 10
+      const offset = (page - 1) * limit
+
+      // Fetch recipes for the user
+      const recipes = await db
+        .select({
+          id: recipesTable.id,
+          title: recipesTable.title,
+          description: recipesTable.description,
+          totalTimeInMinutes: recipesTable.totalTimeInMinutes,
+          numberOfServings: recipesTable.numberOfServings,
+          userId: recipesTable.userId,
+          username: usersTable.username,
+          createdAt: recipesTable.createdAt,
+        })
+        .from(recipesTable)
+        .leftJoin(usersTable, eq(recipesTable.userId, usersTable.id))
+        .where(eq(recipesTable.userId, userId))
+        .limit(limit)
+        .offset(offset)
+
+      // Get total count of recipes for this user
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(recipesTable)
+        .where(eq(recipesTable.userId, userId))
+
+      res.json({
+        recipes,
+        total: Number(count),
+        currentPage: page,
+        totalPages: Math.ceil(Number(count) / limit),
+      })
+    } catch (error) {
+      console.error("Error fetching user recipes:", error)
+      res.status(500).json({ error: "Failed to fetch user recipes" })
+    }
+  }
+)
+
 export default router

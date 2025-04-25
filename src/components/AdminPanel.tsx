@@ -17,10 +17,12 @@ import {
   Tab,
   Container,
   Chip,
+  Button,
 } from "@mui/material"
 import DeleteIcon from "@mui/icons-material/Delete"
 import EditIcon from "@mui/icons-material/Edit"
 import SearchIcon from "@mui/icons-material/Search"
+import ArrowBackIcon from "@mui/icons-material/ArrowBack"
 import { useNavigate } from "react-router-dom"
 import { AdminRecipeItem } from "../types/Recipe"
 import { authenticatedFetch } from "../utils/api"
@@ -86,6 +88,12 @@ export default function AdminPanel() {
   const [totalUsers, setTotalUsers] = useState(0)
   const [loading, setLoading] = useState(true)
   const [selectedTab, setSelectedTab] = useState(0)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [userRecipes, setUserRecipes] = useState<AdminRecipeItem[]>([])
+  const [totalUserRecipes, setTotalUserRecipes] = useState(0)
+  const [userRecipesPage, setUserRecipesPage] = useState(0)
+  const [userRecipesPerPage, setUserRecipesPerPage] = useState(10)
+  const [userRecipesLoading, setUserRecipesLoading] = useState(false)
   const navigate = useNavigate()
 
   // Apply 500ms debounce to the search term
@@ -145,6 +153,34 @@ export default function AdminPanel() {
     }
   }, [page, rowsPerPage, debouncedSearchTerm])
 
+  const fetchUserRecipes = useCallback(
+    async (userId: number) => {
+      setUserRecipesLoading(true)
+      try {
+        const response = await authenticatedFetch(
+          `/api/admin/users/${userId}/recipes?page=${
+            userRecipesPage + 1
+          }&limit=${userRecipesPerPage}`
+        )
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const data = await response.json()
+        setUserRecipes(data.recipes || [])
+        setTotalUserRecipes(data.total || 0)
+      } catch (error) {
+        console.error("Failed to fetch user recipes:", error)
+        setUserRecipes([])
+        setTotalUserRecipes(0)
+      } finally {
+        setUserRecipesLoading(false)
+      }
+    },
+    [userRecipesPage, userRecipesPerPage]
+  )
+
   useEffect(() => {
     if (selectedTab === 0) {
       fetchUsers()
@@ -152,6 +188,12 @@ export default function AdminPanel() {
       fetchRecipes()
     }
   }, [selectedTab, fetchUsers, fetchRecipes])
+
+  useEffect(() => {
+    if (selectedUser) {
+      fetchUserRecipes(selectedUser.id)
+    }
+  }, [selectedUser, fetchUserRecipes])
 
   // Reset to page 0 when search term changes
   useEffect(() => {
@@ -204,6 +246,107 @@ export default function AdminPanel() {
     setSearchTerm("")
   }
 
+  const handleUserClick = (user: User) => {
+    setSelectedUser(user)
+    setUserRecipesPage(0)
+  }
+
+  const handleUserRecipesChangePage = (event: unknown, newPage: number) => {
+    setUserRecipesPage(newPage)
+  }
+
+  const handleUserRecipesChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setUserRecipesPerPage(parseInt(event.target.value, 10))
+    setUserRecipesPage(0)
+  }
+
+  const handleBackToUsers = () => {
+    setSelectedUser(null)
+  }
+
+  // User Recipes Component
+  const UserRecipes = () => {
+    if (!selectedUser) return null
+
+    return (
+      <Box>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={handleBackToUsers}
+            sx={{ mr: 2 }}
+          >
+            Back to Users
+          </Button>
+          <Typography variant="h5">
+            Recipes by {selectedUser.username}
+          </Typography>
+        </Box>
+
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Title</TableCell>
+                <TableCell>Created</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {userRecipesLoading ? (
+                <TableRow>
+                  <TableCell colSpan={3} align="center">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              ) : userRecipes.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={3} align="center">
+                    This user has no recipes
+                  </TableCell>
+                </TableRow>
+              ) : (
+                userRecipes.map((recipe) => (
+                  <TableRow key={recipe.id}>
+                    <TableCell>{recipe.title}</TableCell>
+                    <TableCell>{formatDate(recipe.createdAt)}</TableCell>
+                    <TableCell align="right">
+                      <IconButton
+                        onClick={() => handleEdit(recipe.id)}
+                        color="primary"
+                        size="small"
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        onClick={() => handleDelete(recipe.id)}
+                        color="error"
+                        size="small"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25]}
+            component="div"
+            count={totalUserRecipes}
+            rowsPerPage={userRecipesPerPage}
+            page={userRecipesPage}
+            onPageChange={handleUserRecipesChangePage}
+            onRowsPerPageChange={handleUserRecipesChangeRowsPerPage}
+          />
+        </TableContainer>
+      </Box>
+    )
+  }
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ width: "100%", mb: 2 }}>
@@ -232,73 +375,88 @@ export default function AdminPanel() {
             User Management
           </Typography>
 
-          <TextField
-            fullWidth
-            variant="outlined"
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={handleSearch}
-            sx={{ mb: 3 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-            }}
-          />
+          {selectedUser ? (
+            <UserRecipes />
+          ) : (
+            <>
+              <TextField
+                fullWidth
+                variant="outlined"
+                placeholder="Search users..."
+                value={searchTerm}
+                onChange={handleSearch}
+                sx={{ mb: 3 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
 
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Username</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell>Role</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center">
-                      Loading...
-                    </TableCell>
-                  </TableRow>
-                ) : users.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center">
-                      No users found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.username}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{formatDate(user.createdAt)}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={user.isAdmin ? "Admin" : "User"}
-                          color={user.isAdmin ? "primary" : "default"}
-                          size="small"
-                        />
-                      </TableCell>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Username</TableCell>
+                      <TableCell>Email</TableCell>
+                      <TableCell>Created</TableCell>
+                      <TableCell>Role</TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-            <TablePagination
-              rowsPerPageOptions={[5, 10, 25]}
-              component="div"
-              count={selectedTab === 0 ? totalUsers : totalRecipes}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handleChangePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-            />
-          </TableContainer>
+                  </TableHead>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">
+                          Loading...
+                        </TableCell>
+                      </TableRow>
+                    ) : users.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">
+                          No users found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      users.map((user) => (
+                        <TableRow
+                          key={user.id}
+                          onClick={() => handleUserClick(user)}
+                          sx={{
+                            cursor: "pointer",
+                            "&:hover": {
+                              backgroundColor: "rgba(0, 0, 0, 0.04)",
+                            },
+                          }}
+                        >
+                          <TableCell>{user.username}</TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>{formatDate(user.createdAt)}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={user.isAdmin ? "Admin" : "User"}
+                              color={user.isAdmin ? "primary" : "default"}
+                              size="small"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+                <TablePagination
+                  rowsPerPageOptions={[5, 10, 25]}
+                  component="div"
+                  count={selectedTab === 0 ? totalUsers : totalRecipes}
+                  rowsPerPage={rowsPerPage}
+                  page={page}
+                  onPageChange={handleChangePage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                />
+              </TableContainer>
+            </>
+          )}
         </TabPanel>
         <TabPanel value={selectedTab} index={1}>
           <Typography variant="h4" gutterBottom>
