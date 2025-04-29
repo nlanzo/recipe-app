@@ -32,7 +32,8 @@ const testUsers = [
     id: 1,
     username: "testuser",
     email: "test@example.com",
-    password: "$2b$10$Xe9MJUrQSCdlwLkM2v4pFuyVeQJ1hBqyivV/zYX0PgP6oALnlDwUi", // hashed 'password123'
+    passwordHash:
+      "$2b$10$Xe9MJUrQSCdlwLkM2v4pFuyVeQJ1hBqyivV/zYX0PgP6oALnlDwUi", // hashed 'password123'
     isAdmin: false,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -41,7 +42,8 @@ const testUsers = [
     id: 2,
     username: "admin",
     email: "admin@example.com",
-    password: "$2b$10$Xe9MJUrQSCdlwLkM2v4pFuyVeQJ1hBqyivV/zYX0PgP6oALnlDwUi", // hashed 'password123'
+    passwordHash:
+      "$2b$10$Xe9MJUrQSCdlwLkM2v4pFuyVeQJ1hBqyivV/zYX0PgP6oALnlDwUi", // hashed 'password123'
     isAdmin: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -55,9 +57,9 @@ const testCategories = [
 ]
 
 const testUnits = [
-  { id: 1, name: "g" },
-  { id: 2, name: "tbsp" },
-  { id: 3, name: "cup" },
+  { id: 1, name: "g", abbreviation: "g" },
+  { id: 2, name: "tablespoon", abbreviation: "tbsp" },
+  { id: 3, name: "cup", abbreviation: "cup" },
 ]
 
 const testIngredients = [
