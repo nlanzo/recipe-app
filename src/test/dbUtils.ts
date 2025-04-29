@@ -1,12 +1,15 @@
 import { drizzle } from "drizzle-orm/node-postgres"
 import { migrate } from "drizzle-orm/node-postgres/migrator"
 import { eq } from "drizzle-orm"
-import { Pool } from "pg"
+import pg from "pg"
 import dotenv from "dotenv"
 import * as schema from "../db/schema"
 
 // Load test environment variables
 dotenv.config({ path: ".env.test" })
+
+// Get PostgreSQL Pool from pg
+const { Pool } = pg
 
 // Database URL for testing
 const testDatabaseUrl = process.env.DATABASE_URL
@@ -32,21 +35,25 @@ const testUsers = [
     id: 1,
     username: "testuser",
     email: "test@example.com",
-    passwordHash:
+    password_hash:
       "$2b$10$Xe9MJUrQSCdlwLkM2v4pFuyVeQJ1hBqyivV/zYX0PgP6oALnlDwUi", // hashed 'password123'
-    isAdmin: false,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    reset_token_hash: null,
+    reset_token_expiry: null,
+    is_admin: false,
+    created_at: new Date(),
+    updated_at: new Date(),
   },
   {
     id: 2,
     username: "admin",
     email: "admin@example.com",
-    passwordHash:
+    password_hash:
       "$2b$10$Xe9MJUrQSCdlwLkM2v4pFuyVeQJ1hBqyivV/zYX0PgP6oALnlDwUi", // hashed 'password123'
-    isAdmin: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    reset_token_hash: null,
+    reset_token_expiry: null,
+    is_admin: true,
+    created_at: new Date(),
+    updated_at: new Date(),
   },
 ]
 
@@ -109,24 +116,108 @@ export async function setupTestDatabase() {
     console.log("Setting up test database...")
 
     // Run migrations
-    await migrate(testDb, { migrationsFolder: "./drizzle" })
+    try {
+      console.log("Running database migrations...")
+      await migrate(testDb, { migrationsFolder: "./drizzle" })
+      console.log("Migrations completed successfully")
+    } catch (error) {
+      console.error("Error running migrations:", error)
+      console.log(
+        "Continuing with setup - migration errors may be due to schema already existing"
+      )
+    }
 
     // Clear existing data
     await clearDatabase()
 
     // Insert test data
-    await testDb.insert(schema.usersTable).values(testUsers)
-    await testDb.insert(schema.categoriesTable).values(testCategories)
-    await testDb.insert(schema.unitsTable).values(testUnits)
-    await testDb.insert(schema.ingredientsTable).values(testIngredients)
-    await testDb.insert(schema.recipesTable).values(testRecipes)
-    await testDb
-      .insert(schema.recipeIngredientsTable)
-      .values(testRecipeIngredients)
-    await testDb
-      .insert(schema.recipeCategoriesTable)
-      .values(testRecipeCategories)
-    await testDb.insert(schema.imagesTable).values(testImages)
+    console.log("Inserting test data...")
+
+    // Insert users
+    for (const user of testUsers) {
+      await testDb.insert(schema.usersTable).values({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        passwordHash: user.password_hash,
+        resetTokenHash: user.reset_token_hash,
+        resetTokenExpiry: user.reset_token_expiry,
+        isAdmin: user.is_admin,
+        createdAt: user.created_at,
+        updatedAt: user.updated_at,
+      })
+    }
+
+    // Insert units
+    for (const unit of testUnits) {
+      await testDb.insert(schema.unitsTable).values({
+        id: unit.id,
+        name: unit.name,
+        abbreviation: unit.abbreviation,
+      })
+    }
+
+    // Insert categories
+    for (const category of testCategories) {
+      await testDb.insert(schema.categoriesTable).values({
+        id: category.id,
+        name: category.name,
+      })
+    }
+
+    // Insert ingredients
+    for (const ingredient of testIngredients) {
+      await testDb.insert(schema.ingredientsTable).values({
+        id: ingredient.id,
+        name: ingredient.name,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+    }
+
+    // Insert recipes
+    for (const recipe of testRecipes) {
+      await testDb.insert(schema.recipesTable).values({
+        id: recipe.id,
+        userId: recipe.userId,
+        title: recipe.title,
+        description: recipe.description,
+        instructions: recipe.instructions,
+        activeTimeInMinutes: recipe.activeTimeInMinutes,
+        totalTimeInMinutes: recipe.totalTimeInMinutes,
+        numberOfServings: recipe.numberOfServings,
+        createdAt: recipe.createdAt,
+        updatedAt: recipe.updatedAt,
+      })
+    }
+
+    // Insert recipe ingredients
+    for (const ri of testRecipeIngredients) {
+      await testDb.insert(schema.recipeIngredientsTable).values({
+        recipeId: ri.recipeId,
+        ingredientId: ri.ingredientId,
+        unitId: ri.unitId,
+        quantity: ri.quantity,
+      })
+    }
+
+    // Insert recipe categories
+    for (const rc of testRecipeCategories) {
+      await testDb.insert(schema.recipeCategoriesTable).values({
+        recipeId: rc.recipeId,
+        categoryId: rc.categoryId,
+      })
+    }
+
+    // Insert images
+    for (const image of testImages) {
+      await testDb.insert(schema.imagesTable).values({
+        recipeId: image.recipeId,
+        imageUrl: image.imageUrl,
+        altText: image.altText,
+        isPrimary: image.isPrimary,
+      })
+    }
 
     console.log("Test database setup completed")
   } catch (error) {
@@ -149,6 +240,7 @@ export async function clearDatabase() {
     await testDb.delete(schema.ingredientsTable)
     await testDb.delete(schema.unitsTable)
     await testDb.delete(schema.categoriesTable)
+    await testDb.delete(schema.refreshTokensTable)
     await testDb.delete(schema.usersTable)
 
     console.log("Test database cleared")

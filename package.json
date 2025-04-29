@@ -16,6 +16,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
+    "setup:test-db": "cross-env NODE_ENV=test tsx scripts/setup-test-db.js",
+    "test:integration": "cross-env NODE_ENV=test vitest run src/server/__tests__/",
     "lint": "eslint .",
     "preview": "vite preview",
     "db:generate": "cross-env NODE_ENV=development drizzle-kit generate",

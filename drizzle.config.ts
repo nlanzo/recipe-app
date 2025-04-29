@@ -7,8 +7,18 @@ import path from "path"
 delete process.env.DATABASE_URL
 
 // Load environment variables based on NODE_ENV
-const envFile =
-  process.env.NODE_ENV === "production" ? ".env" : ".env.development"
+const getEnvFile = () => {
+  switch (process.env.NODE_ENV) {
+    case "production":
+      return ".env"
+    case "test":
+      return ".env.test"
+    default:
+      return ".env.development"
+  }
+}
+
+const envFile = getEnvFile()
 console.log("Loading environment from:", envFile)
 dotenv.config({ path: envFile })
 
@@ -36,7 +46,7 @@ const caCertPath = path.join(serverRoot, "certs", "us-east-2-bundle.pem")
 
 console.log("\nDatabase Configuration:")
 console.log("----------------------")
-console.log("Environment:", isProduction ? "production" : "development")
+console.log("Environment:", process.env.NODE_ENV || "development")
 console.log("Host:", dbConfig.host)
 console.log("Port:", dbConfig.port)
 console.log("Database:", dbConfig.database)
