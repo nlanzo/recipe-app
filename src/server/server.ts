@@ -1271,6 +1271,42 @@ app.get(
   }
 )
 
+// Get user profile data
+app.get(
+  "/api/user/profile",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    const userId = req.user?.userId
+
+    if (!userId) {
+      res.status(401).json({ error: "User ID is required" })
+      return
+    }
+
+    try {
+      const [user] = await db
+        .select({
+          username: usersTable.username,
+          email: usersTable.email,
+          isAdmin: usersTable.isAdmin,
+        })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .limit(1)
+
+      if (!user) {
+        res.status(404).json({ error: "User not found" })
+        return
+      }
+
+      res.json(user)
+    } catch (error) {
+      console.error("Error fetching user profile:", error)
+      res.status(500).json({ error: "Failed to fetch user profile" })
+    }
+  }
+)
+
 app.put(
   "/api/user/password",
   authenticateToken,
