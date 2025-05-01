@@ -114,8 +114,7 @@ vi.mock("../../db/recipeQueries", () => {
 })
 
 // Add the actual recipe endpoints
-// @ts-expect-error - Type issues with Express in tests
-app.get("/api/recipes", async (req, res) => {
+app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
   try {
     const recipes = await getRecipeById(1)
     res.json({ recipes: [recipes] })
@@ -125,33 +124,36 @@ app.get("/api/recipes", async (req, res) => {
   }
 })
 
-// @ts-expect-error - Type issues with Express in tests
-app.get("/api/recipes/:id", async (req, res) => {
-  try {
-    const recipeId = parseInt(req.params.id)
-    const recipe = await getRecipeById(recipeId)
+app.get(
+  "/api/recipes/:id",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const recipeId = parseInt(req.params.id)
+      const recipe = await getRecipeById(recipeId)
 
-    if (!recipe || !recipe.title) {
-      return res.status(404).json({ error: "Recipe not found" })
+      if (!recipe || !recipe.title) {
+        res.status(404).json({ error: "Recipe not found" })
+        return
+      }
+
+      res.json(recipe)
+    } catch (error) {
+      console.error("Error fetching recipe:", error)
+      res.status(500).json({ error: "Failed to fetch recipe" })
     }
-
-    res.json(recipe)
-  } catch (error) {
-    console.error("Error fetching recipe:", error)
-    res.status(500).json({ error: "Failed to fetch recipe" })
   }
-})
+)
 
 // Authentication test endpoint
-// @ts-expect-error - Type issues with Express in tests
 app.get(
   "/api/recipes/user/saved",
   authenticateToken,
-  (req: AuthRequest, res) => {
+  (req: AuthRequest, res: Response): void => {
     const userId = req.user?.userId
 
     if (!userId) {
-      return res.status(401).json({ error: "User ID is required" })
+      res.status(401).json({ error: "User ID is required" })
+      return
     }
 
     res.json({ userId, message: "This is a protected endpoint" })

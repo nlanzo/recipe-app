@@ -1164,7 +1164,7 @@ app.post(
 
       if (existingSave.length > 0) {
         // Recipe is already saved
-        return res.status(409).json({
+        res.status(409).json({
           error: "Recipe already saved",
           message: "This recipe is already in your saved recipes",
         })
