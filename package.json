@@ -18,6 +18,8 @@
     "test:ui": "vitest --ui",
     "setup:test-db": "cross-env NODE_ENV=test tsx scripts/setup-test-db.js",
     "test:integration": "cross-env NODE_ENV=test vitest run src/server/__tests__/",
+    "test:all": "npm run test && npm run test:integration",
+    "pre-deploy": "npm run test:all && npm run build && npm run build:server",
     "lint": "eslint .",
     "preview": "vite preview",
     "db:generate": "cross-env NODE_ENV=development drizzle-kit generate",
