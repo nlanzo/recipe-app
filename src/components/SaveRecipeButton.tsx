@@ -51,7 +51,9 @@ export default function SaveRecipeButton({ recipeId }: Props) {
           method: isSaved ? "DELETE" : "POST",
         }
       )
-      if (response.ok) {
+
+      // If the recipe is already saved, the server returns 409, which is still a successful state for the client
+      if (response.ok || response.status === 409) {
         setIsSaved(!isSaved)
       }
     } catch (error) {

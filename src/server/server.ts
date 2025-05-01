@@ -1150,6 +1150,27 @@ app.post(
     }
 
     try {
+      // First, check if the recipe is already saved by this user
+      const existingSave = await db
+        .select()
+        .from(savedRecipesTable)
+        .where(
+          and(
+            eq(savedRecipesTable.userId, userId),
+            eq(savedRecipesTable.recipeId, recipeId)
+          )
+        )
+        .limit(1)
+
+      if (existingSave.length > 0) {
+        // Recipe is already saved
+        return res.status(409).json({
+          error: "Recipe already saved",
+          message: "This recipe is already in your saved recipes",
+        })
+      }
+
+      // If not already saved, save it
       await db.insert(savedRecipesTable).values({
         recipeId,
         userId,

@@ -7,6 +7,7 @@ import {
   timestamp,
   boolean,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core"
 
 import { relations } from "drizzle-orm"
@@ -106,16 +107,25 @@ export const imagesTable = pgTable("images", {
   isPrimary: boolean("is_primary").default(false).notNull(), // Indicates if the image is the primary image for the recipe
 })
 
-export const savedRecipesTable = pgTable("saved_recipes", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id")
-    .references(() => usersTable.id)
-    .notNull(),
-  recipeId: integer("recipe_id")
-    .references(() => recipesTable.id)
-    .notNull(),
-  savedAt: timestamp("saved_at").defaultNow(),
-})
+export const savedRecipesTable = pgTable(
+  "saved_recipes",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => usersTable.id)
+      .notNull(),
+    recipeId: integer("recipe_id")
+      .references(() => recipesTable.id)
+      .notNull(),
+    savedAt: timestamp("saved_at").defaultNow(),
+  },
+  (table) => ({
+    userRecipeIdx: uniqueIndex("user_recipe_idx").on(
+      table.userId,
+      table.recipeId
+    ),
+  })
+)
 
 // Relations
 

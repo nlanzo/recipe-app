@@ -212,4 +212,42 @@ describe("SaveRecipeButton", () => {
     // Clean up spy
     consoleErrorSpy.mockRestore()
   })
+
+  it("handles already saved recipes gracefully", async () => {
+    // Mock the initial check (not saved)
+    mockAuthenticatedFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    })
+
+    // Mock the save request returning 409 (already saved)
+    mockAuthenticatedFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      json: async () => ({ error: "Recipe already saved" }),
+    })
+
+    render(<SaveRecipeButton recipeId="123" />)
+
+    // Wait for the initial state
+    await waitFor(() => {
+      expect(screen.getByText("Save Recipe")).toBeInTheDocument()
+    })
+
+    // Click the save button
+    fireEvent.click(screen.getByText("Save Recipe"))
+
+    // Verify save request was made with correct parameters
+    await waitFor(() => {
+      expect(mockAuthenticatedFetch).toHaveBeenCalledWith(
+        "/api/recipes/123/save",
+        { method: "POST" }
+      )
+    })
+
+    // Even with 409, button should change to "Saved" as the app knows the recipe is saved
+    await waitFor(() => {
+      expect(screen.getByText("Saved")).toBeInTheDocument()
+    })
+  })
 })
