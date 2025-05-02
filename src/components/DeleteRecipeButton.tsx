@@ -2,6 +2,7 @@ import { Alert, Button } from "@mui/material"
 import { useState, useTransition } from "react"
 import { TiDelete } from "react-icons/ti"
 import { useNavigate } from "react-router-dom"
+import { authenticatedFetch } from "../utils/api"
 
 interface DeleteRecipeButtonProps {
   id: string
@@ -14,11 +15,12 @@ export default function DeleteRecipeButton({ id }: DeleteRecipeButtonProps) {
 
   async function deleteRecipe(id: string) {
     try {
-      const response = await fetch(`/api/recipes/${id}`, {
+      const response = await authenticatedFetch(`/api/recipes/${id}`, {
         method: "DELETE",
       })
       if (!response.ok) {
-        throw new Error("Failed to delete recipe")
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to delete recipe")
       } else {
         // Redirect to the homepage
         navigate("/")

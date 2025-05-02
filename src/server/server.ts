@@ -52,6 +52,8 @@ console.log(
   "Database URL:",
   process.env.DATABASE_URL?.replace(/:[^:]*@/, ":****@")
 )
+console.log("S3 Bucket:", process.env.S3_BUCKET_NAME)
+console.log("AWS Region:", process.env.AWS_REGION)
 console.log("SSL Certificate:", process.env.PG_SSL_CA)
 console.log("--------------------\n")
 
@@ -442,8 +444,16 @@ app.post(
 
     try {
       // Parse the form data fields - make sure these are properly stringified on the client
-      const parsedCategories = categories ? JSON.parse(categories) : []
-      const parsedIngredients = ingredients ? JSON.parse(ingredients) : []
+      const parsedCategories = Array.isArray(categories)
+        ? categories
+        : typeof categories === "string"
+        ? JSON.parse(categories)
+        : []
+      const parsedIngredients = Array.isArray(ingredients)
+        ? ingredients
+        : typeof ingredients === "string"
+        ? JSON.parse(ingredients)
+        : []
 
       await db.transaction(async (trx: DbType) => {
         // Step 1: Add Recipe
@@ -730,7 +740,12 @@ app.put(
         }
 
         // Step 4: Delete Old Images from S3 (if requested)
-        const imagesToDelete = JSON.parse(removedImages)
+        const imagesToDelete = Array.isArray(removedImages)
+          ? removedImages
+          : typeof removedImages === "string"
+          ? JSON.parse(removedImages)
+          : []
+
         if (Array.isArray(imagesToDelete) && imagesToDelete.length > 0) {
           for (const imageUrl of imagesToDelete) {
             console.log(imageUrl)
