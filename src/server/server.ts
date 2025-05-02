@@ -420,8 +420,8 @@ app.post(
   authenticateToken,
   upload.array("images", 10),
   validateRecipe,
-  async (req: Request, res: Response): Promise<void> => {
-    const userId = (req as AuthRequest).user?.userId
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId
     if (!userId) {
       res.status(401).json({ error: "User ID is required" })
       return
@@ -580,13 +580,52 @@ app.put(
   authenticateToken,
   upload.array("newImages", 10),
   validateRecipeUpdate,
-  async (req: Request, res: Response): Promise<void> => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     console.log("Request body:", req.body)
     console.log("Request files:", req.files)
     const recipeId = parseInt(req.params.id, 10)
 
     if (isNaN(recipeId)) {
       res.status(400).json({ error: "Invalid recipe ID" })
+      return
+    }
+
+    const userId = req.user?.userId
+
+    if (!userId) {
+      res.status(401).json({ error: "Authentication required" })
+      return
+    }
+
+    // Check if user is admin or recipe owner
+    const [user] = await db
+      .select({
+        isAdmin: usersTable.isAdmin,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1)
+
+    // Get recipe to check ownership
+    const [recipe] = await db
+      .select({
+        userId: recipesTable.userId,
+      })
+      .from(recipesTable)
+      .where(eq(recipesTable.id, recipeId))
+      .limit(1)
+
+    if (!recipe) {
+      res.status(404).json({ error: "Recipe not found" })
+      return
+    }
+
+    // Check if user is authorized to edit this recipe
+    const isOwner = recipe.userId === userId
+    const isUserAdmin = user?.isAdmin || false
+
+    if (!isOwner && !isUserAdmin) {
+      res.status(403).json({ error: "Not authorized to edit this recipe" })
       return
     }
 
@@ -771,7 +810,8 @@ app.put(
 
 app.delete(
   "/api/recipes/:id",
-  async (req: Request, res: Response): Promise<void> => {
+  authenticateToken,
+  async (req: AuthRequest, res: Response): Promise<void> => {
     const recipeId = parseInt(req.params.id, 10)
     console.log("Deleting recipe with ID:", recipeId)
 
@@ -781,6 +821,46 @@ app.delete(
     }
 
     try {
+      // Get current user's ID
+      const userId = req.user?.userId
+
+      if (!userId) {
+        res.status(401).json({ error: "Authentication required" })
+        return
+      }
+
+      // Check if user is admin or recipe owner
+      const [user] = await db
+        .select({
+          isAdmin: usersTable.isAdmin,
+        })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .limit(1)
+
+      // Get recipe to check ownership
+      const [recipe] = await db
+        .select({
+          userId: recipesTable.userId,
+        })
+        .from(recipesTable)
+        .where(eq(recipesTable.id, recipeId))
+        .limit(1)
+
+      if (!recipe) {
+        res.status(404).json({ error: "Recipe not found" })
+        return
+      }
+
+      // Check if user is authorized to delete this recipe
+      const isOwner = recipe.userId === userId
+      const isUserAdmin = user?.isAdmin || false
+
+      if (!isOwner && !isUserAdmin) {
+        res.status(403).json({ error: "Not authorized to delete this recipe" })
+        return
+      }
+
       await db.transaction(async (trx: DbType) => {
         // Step 1: Fetch all image URLs for the recipe
         const images = await trx
