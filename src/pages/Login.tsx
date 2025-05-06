@@ -33,6 +33,7 @@ export default function Login() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       })
 
@@ -42,7 +43,7 @@ export default function Login() {
         throw new Error(data.error || "Login failed")
       }
 
-      login(data.token, data.user)
+      login(data.accessToken, data.user)
 
       // Navigate to the return URL if it exists, otherwise go to home
       const state = location.state as LocationState

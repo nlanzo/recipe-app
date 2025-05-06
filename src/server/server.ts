@@ -52,6 +52,8 @@ console.log(
   "Database URL:",
   process.env.DATABASE_URL?.replace(/:[^:]*@/, ":****@")
 )
+console.log("S3 Bucket:", process.env.S3_BUCKET_NAME)
+console.log("AWS Region:", process.env.AWS_REGION)
 console.log("SSL Certificate:", process.env.PG_SSL_CA)
 console.log("--------------------\n")
 
@@ -420,8 +422,8 @@ app.post(
   authenticateToken,
   upload.array("images", 10),
   validateRecipe,
-  async (req: Request, res: Response): Promise<void> => {
-    const userId = (req as AuthRequest).user?.userId
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const userId = req.user?.userId
     if (!userId) {
       res.status(401).json({ error: "User ID is required" })
       return
@@ -442,8 +444,16 @@ app.post(
 
     try {
       // Parse the form data fields - make sure these are properly stringified on the client
-      const parsedCategories = categories ? JSON.parse(categories) : []
-      const parsedIngredients = ingredients ? JSON.parse(ingredients) : []
+      const parsedCategories = Array.isArray(categories)
+        ? categories
+        : typeof categories === "string"
+        ? JSON.parse(categories)
+        : []
+      const parsedIngredients = Array.isArray(ingredients)
+        ? ingredients
+        : typeof ingredients === "string"
+        ? JSON.parse(ingredients)
+        : []
 
       await db.transaction(async (trx: DbType) => {
         // Step 1: Add Recipe
@@ -580,13 +590,52 @@ app.put(
   authenticateToken,
   upload.array("newImages", 10),
   validateRecipeUpdate,
-  async (req: Request, res: Response): Promise<void> => {
+  async (req: AuthRequest, res: Response): Promise<void> => {
     console.log("Request body:", req.body)
     console.log("Request files:", req.files)
     const recipeId = parseInt(req.params.id, 10)
 
     if (isNaN(recipeId)) {
       res.status(400).json({ error: "Invalid recipe ID" })
+      return
+    }
+
+    const userId = req.user?.userId
+
+    if (!userId) {
+      res.status(401).json({ error: "Authentication required" })
+      return
+    }
+
+    // Check if user is admin or recipe owner
+    const [user] = await db
+      .select({
+        isAdmin: usersTable.isAdmin,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1)
+
+    // Get recipe to check ownership
+    const [recipe] = await db
+      .select({
+        userId: recipesTable.userId,
+      })
+      .from(recipesTable)
+      .where(eq(recipesTable.id, recipeId))
+      .limit(1)
+
+    if (!recipe) {
+      res.status(404).json({ error: "Recipe not found" })
+      return
+    }
+
+    // Check if user is authorized to edit this recipe
+    const isOwner = recipe.userId === userId
+    const isUserAdmin = user?.isAdmin || false
+
+    if (!isOwner && !isUserAdmin) {
+      res.status(403).json({ error: "Not authorized to edit this recipe" })
       return
     }
 
@@ -691,7 +740,12 @@ app.put(
         }
 
         // Step 4: Delete Old Images from S3 (if requested)
-        const imagesToDelete = JSON.parse(removedImages)
+        const imagesToDelete = Array.isArray(removedImages)
+          ? removedImages
+          : typeof removedImages === "string"
+          ? JSON.parse(removedImages)
+          : []
+
         if (Array.isArray(imagesToDelete) && imagesToDelete.length > 0) {
           for (const imageUrl of imagesToDelete) {
             console.log(imageUrl)
@@ -771,7 +825,8 @@ app.put(
 
 app.delete(
   "/api/recipes/:id",
-  async (req: Request, res: Response): Promise<void> => {
+  authenticateToken,
+  async (req: AuthRequest, res: Response): Promise<void> => {
     const recipeId = parseInt(req.params.id, 10)
     console.log("Deleting recipe with ID:", recipeId)
 
@@ -781,6 +836,46 @@ app.delete(
     }
 
     try {
+      // Get current user's ID
+      const userId = req.user?.userId
+
+      if (!userId) {
+        res.status(401).json({ error: "Authentication required" })
+        return
+      }
+
+      // Check if user is admin or recipe owner
+      const [user] = await db
+        .select({
+          isAdmin: usersTable.isAdmin,
+        })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .limit(1)
+
+      // Get recipe to check ownership
+      const [recipe] = await db
+        .select({
+          userId: recipesTable.userId,
+        })
+        .from(recipesTable)
+        .where(eq(recipesTable.id, recipeId))
+        .limit(1)
+
+      if (!recipe) {
+        res.status(404).json({ error: "Recipe not found" })
+        return
+      }
+
+      // Check if user is authorized to delete this recipe
+      const isOwner = recipe.userId === userId
+      const isUserAdmin = user?.isAdmin || false
+
+      if (!isOwner && !isUserAdmin) {
+        res.status(403).json({ error: "Not authorized to delete this recipe" })
+        return
+      }
+
       await db.transaction(async (trx: DbType) => {
         // Step 1: Fetch all image URLs for the recipe
         const images = await trx
@@ -1150,6 +1245,27 @@ app.post(
     }
 
     try {
+      // First, check if the recipe is already saved by this user
+      const existingSave = await db
+        .select()
+        .from(savedRecipesTable)
+        .where(
+          and(
+            eq(savedRecipesTable.userId, userId),
+            eq(savedRecipesTable.recipeId, recipeId)
+          )
+        )
+        .limit(1)
+
+      if (existingSave.length > 0) {
+        // Recipe is already saved
+        res.status(409).json({
+          error: "Recipe already saved",
+          message: "This recipe is already in your saved recipes",
+        })
+      }
+
+      // If not already saved, save it
       await db.insert(savedRecipesTable).values({
         recipeId,
         userId,
@@ -1267,6 +1383,42 @@ app.get(
     } catch (error) {
       console.error("Error fetching user's recipes:", error)
       res.status(500).json({ error: "Failed to fetch user's recipes" })
+    }
+  }
+)
+
+// Get user profile data
+app.get(
+  "/api/user/profile",
+  authenticateToken,
+  async (req: AuthRequest, res: Response) => {
+    const userId = req.user?.userId
+
+    if (!userId) {
+      res.status(401).json({ error: "User ID is required" })
+      return
+    }
+
+    try {
+      const [user] = await db
+        .select({
+          username: usersTable.username,
+          email: usersTable.email,
+          isAdmin: usersTable.isAdmin,
+        })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .limit(1)
+
+      if (!user) {
+        res.status(404).json({ error: "User not found" })
+        return
+      }
+
+      res.json(user)
+    } catch (error) {
+      console.error("Error fetching user profile:", error)
+      res.status(500).json({ error: "Failed to fetch user profile" })
     }
   }
 )

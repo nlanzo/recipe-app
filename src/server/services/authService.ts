@@ -146,37 +146,42 @@ export class AuthService {
   }
 
   static async refreshAccessToken(refreshToken: string): Promise<string> {
-    // Find the refresh token in the database
-    const [storedToken] = await db
-      .select()
-      .from(refreshTokensTable)
-      .where(
-        and(
-          eq(refreshTokensTable.revoked, false),
-          gt(refreshTokensTable.expiresAt, new Date())
+    try {
+      // Find all non-revoked tokens that haven't expired yet
+      const tokens = await db
+        .select()
+        .from(refreshTokensTable)
+        .where(
+          and(
+            eq(refreshTokensTable.revoked, false),
+            gt(refreshTokensTable.expiresAt, new Date())
+          )
         )
-      )
-      .limit(1)
 
-    if (!storedToken) {
-      throw new Error("Invalid refresh token")
+      // Check each token for a match
+      let validUserId = null
+      for (const token of tokens) {
+        const isValidToken = await bcrypt.compare(refreshToken, token.tokenHash)
+        if (isValidToken) {
+          validUserId = token.userId
+          break
+        }
+      }
+
+      if (validUserId === null) {
+        throw new Error("Invalid refresh token")
+      }
+
+      // Generate new access token
+      const accessToken = jwt.sign({ userId: validUserId }, JWT_SECRET, {
+        expiresIn: ACCESS_TOKEN_EXPIRY,
+      })
+
+      return accessToken
+    } catch (error) {
+      console.error("Error refreshing token:", error)
+      throw error
     }
-
-    // Verify the refresh token
-    const isValidToken = await bcrypt.compare(
-      refreshToken,
-      storedToken.tokenHash
-    )
-    if (!isValidToken) {
-      throw new Error("Invalid refresh token")
-    }
-
-    // Generate new access token
-    const accessToken = jwt.sign({ userId: storedToken.userId }, JWT_SECRET, {
-      expiresIn: ACCESS_TOKEN_EXPIRY,
-    })
-
-    return accessToken
   }
 
   static async logout(refreshToken: string): Promise<void> {

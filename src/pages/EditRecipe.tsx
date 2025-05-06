@@ -13,12 +13,15 @@ import {
   Chip,
   Paper,
   FormHelperText,
+  CircularProgress,
+  Alert,
 } from "@mui/material"
 import Grid from "@mui/material/Grid2"
 import { TiDelete } from "react-icons/ti"
 import { FaSpinner } from "react-icons/fa"
 import { useNavigate, useParams } from "react-router-dom"
 import { useDataLoader } from "../components/useDataLoader"
+import { authenticatedFetch } from "../utils/api"
 
 interface RecipeDetails {
   title: string
@@ -74,27 +77,40 @@ export default function EditRecipe() {
   const [newImages, setNewImages] = useState<File[]>([])
   const [removedImages, setRemovedImages] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [apiError, setApiError] = useState<string | null>(null)
 
   const navigate = useNavigate()
 
   const { id } = useParams<{ id: string }>()
 
-  const data = useDataLoader<RecipeDetails>(`/api/recipes/${id}`)
+  // Use the useDataLoader hook to fetch the recipe data
+  const {
+    data: recipeData,
+    error: loadError,
+    isLoading,
+  } = useDataLoader<RecipeDetails>(`/api/recipes/${id}`)
 
   // Pre-populate the form fields with the recipe data
   useEffect(() => {
-    if (data.data) {
-      setTitle(data.data.title || "")
-      setDescription(data.data.description || "")
-      setInstructions(data.data.instructions || "")
-      setActiveTimeInMinutes(data.data.activeTimeInMinutes)
-      setTotalTimeInMinutes(data.data.totalTimeInMinutes)
-      setNumberOfServings(data.data.numberOfServings)
-      setIngredients(data.data.ingredients)
-      setImages(data.data.images)
-      setCategories(data.data.categories)
+    if (recipeData) {
+      setTitle(recipeData.title || "")
+      setDescription(recipeData.description || "")
+      setInstructions(recipeData.instructions || "")
+      setActiveTimeInMinutes(recipeData.activeTimeInMinutes)
+      setTotalTimeInMinutes(recipeData.totalTimeInMinutes)
+      setNumberOfServings(recipeData.numberOfServings)
+      setIngredients(recipeData.ingredients)
+      setImages(recipeData.images)
+      setCategories(recipeData.categories)
     }
-  }, [data.data])
+  }, [recipeData])
+
+  // Handle API errors from the useDataLoader hook
+  useEffect(() => {
+    if (loadError) {
+      setApiError(loadError)
+    }
+  }, [loadError])
 
   // Handlers
   const handleAddIngredient = () => {
@@ -140,6 +156,7 @@ export default function EditRecipe() {
 
   const handleSubmit = async () => {
     setHasAttemptedSubmit(true)
+    setApiError(null) // Clear any previous API errors
 
     // Validate required fields
     if (
@@ -179,7 +196,7 @@ export default function EditRecipe() {
     }
 
     try {
-      const response = await fetch(`/api/recipes/${id}`, {
+      const response = await authenticatedFetch(`/api/recipes/${id}`, {
         method: "PUT",
         body: formData,
       })
@@ -196,12 +213,12 @@ export default function EditRecipe() {
             .join("\n")
           setError(errorMessages)
         } else {
-          setError(errorData.error || "Failed to edit recipe.")
+          setApiError(errorData.error || "Failed to edit recipe.")
         }
       }
     } catch (error) {
       console.error("Error editing recipe:", error)
-      setError("Error editing recipe. Please try again.")
+      setApiError("Network error. Please check your connection and try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -209,13 +226,24 @@ export default function EditRecipe() {
 
   return (
     <div>
-      {!data.isLoading ? (
+      {isLoading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
         <Box sx={{ padding: 4, maxWidth: "800px", margin: "0 auto" }}>
           {error && (
-            <Typography color="error" sx={{ mb: 2 }}>
+            <Alert severity="error" sx={{ mb: 2 }}>
               {error}
-            </Typography>
+            </Alert>
           )}
+
+          {apiError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {apiError}
+            </Alert>
+          )}
+
           <Typography
             component="h2"
             sx={{
@@ -518,8 +546,6 @@ export default function EditRecipe() {
             </CardContent>
           </Card>
         </Box>
-      ) : (
-        <Typography variant="h4">Loading...</Typography>
       )}
     </div>
   )

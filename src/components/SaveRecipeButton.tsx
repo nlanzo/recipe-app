@@ -3,6 +3,7 @@ import { Button } from "@mui/material"
 import { BsBookmark, BsBookmarkFill } from "react-icons/bs"
 import { useAuth } from "../contexts/useAuth"
 import { useNavigate } from "react-router-dom"
+import { authenticatedFetch } from "../utils/auth"
 
 interface Props {
   recipeId: string
@@ -15,18 +16,14 @@ interface SavedRecipe {
 
 export default function SaveRecipeButton({ recipeId }: Props) {
   const [isSaved, setIsSaved] = useState(false)
-  const { token, isAuthenticated } = useAuth()
+  const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
   const checkSavedStatus = useCallback(async () => {
     if (!isAuthenticated) return
 
     try {
-      const response = await fetch(`/api/user/saved-recipes`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      const response = await authenticatedFetch(`/api/user/saved-recipes`)
       const savedRecipes: SavedRecipe[] = await response.json()
       setIsSaved(
         savedRecipes.some((recipe) => recipe.id === parseInt(recipeId))
@@ -34,7 +31,7 @@ export default function SaveRecipeButton({ recipeId }: Props) {
     } catch (error) {
       console.error("Error checking saved status:", error)
     }
-  }, [recipeId, token, isAuthenticated])
+  }, [recipeId, isAuthenticated])
 
   useEffect(() => {
     // Check if recipe is saved
@@ -48,13 +45,15 @@ export default function SaveRecipeButton({ recipeId }: Props) {
     }
 
     try {
-      const response = await fetch(`/api/recipes/${recipeId}/save`, {
-        method: isSaved ? "DELETE" : "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      if (response.ok) {
+      const response = await authenticatedFetch(
+        `/api/recipes/${recipeId}/save`,
+        {
+          method: isSaved ? "DELETE" : "POST",
+        }
+      )
+
+      // If the recipe is already saved, the server returns 409, which is still a successful state for the client
+      if (response.ok || response.status === 409) {
         setIsSaved(!isSaved)
       }
     } catch (error) {

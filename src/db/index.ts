@@ -8,8 +8,18 @@ import * as schema from "./schema.js"
 const { Pool } = pg
 
 // Load environment variables based on NODE_ENV
-const envFile =
-  process.env.NODE_ENV === "production" ? ".env" : ".env.development"
+const getEnvFile = () => {
+  switch (process.env.NODE_ENV) {
+    case "production":
+      return ".env"
+    case "test":
+      return ".env.test"
+    default:
+      return ".env.development"
+  }
+}
+
+const envFile = getEnvFile()
 dotenv.config({ path: envFile })
 
 // Get the database URL from the appropriate environment file
