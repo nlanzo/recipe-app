@@ -2,7 +2,15 @@ import { Box, Typography } from "@mui/material"
 
 export default function About() {
   return (
-    <Box component="div" sx={{ maxWidth: "xl", mx: "auto", mt: 5 }}>
+    <Box
+      component="div"
+      sx={{
+        maxWidth: "xl",
+        mx: "auto",
+        mt: 5,
+        px: { xs: 2, md: 4, lg: 6 },
+      }}
+    >
       <Typography
         component="h2"
         sx={{
@@ -31,7 +39,7 @@ export default function About() {
       </Typography>
 
       <Typography variant="h5" sx={{ mb: 2 }}>
-        Whether it’s creating a delicious dessert for a special occasion or
+        Whether it's creating a delicious dessert for a special occasion or
         whipping up a quick weeknight dinner, chopchoprecipes.com empowers you
         with the tools and community to succeed in the kitchen. Let's make
         cooking more than a task — let's make it a passion.
