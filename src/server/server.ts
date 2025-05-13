@@ -3,13 +3,6 @@ import express, { Request, Response, NextFunction } from "express"
 import cors from "cors"
 import multer from "multer"
 import cookieParser from "cookie-parser"
-import {
-  DeleteObjectCommand,
-  DeleteObjectsCommand,
-  PutObjectCommand,
-  S3Client,
-  S3ServiceException,
-} from "@aws-sdk/client-s3"
 import { getRecipeById } from "../db/recipeQueries.js"
 import { db } from "../db/index.js"
 import {
@@ -37,6 +30,7 @@ import crypto from "crypto"
 import dotenv from "dotenv"
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses"
 import adminRoutes from "./routes/adminRoutes.js"
+import { uploadFile, deleteFile, deleteFiles } from "./services/s3Service.js"
 
 // Load environment variables based on NODE_ENV
 const envFile =
@@ -109,19 +103,11 @@ const httpServer = http.createServer(app)
 // Serve static files from the dist directory
 app.use(express.static(path.join(process.cwd(), "dist")))
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-})
-
 // Configure Multer to handle file uploads
-const storage = multer.memoryStorage() // Store uploaded files in memory
+const storage = multer.memoryStorage()
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 })
 
 // Validation schema for recipe creation
@@ -531,43 +517,19 @@ app.post(
         if (Array.isArray(req.files) && req.files.length > 0) {
           console.log(`Uploading ${req.files.length} images to S3...`)
           for (const [index, file] of req.files.entries()) {
-            const s3Params = {
-              Bucket: process.env.S3_BUCKET_NAME,
-              Key: `recipes/${Date.now()}-${file.originalname}`, // Unique filename
-              Body: file.buffer,
-              ContentType: file.mimetype,
-            }
-
-            const uploadCommand = new PutObjectCommand({
-              ...s3Params,
-            })
+            const key = `recipes/${Date.now()}-${file.originalname}`
             try {
-              const s3Response = await s3Client.send(uploadCommand)
-              console.log("S3 Response:", s3Response)
-            } catch (caught) {
-              if (
-                caught instanceof S3ServiceException &&
-                caught.name === "EntityTooLarge"
-              ) {
-                console.error("Image is too large:", caught)
-              } else if (caught instanceof S3ServiceException) {
-                console.error(
-                  `Error from S3 while uploading object to ${s3Params.Bucket}.  ${caught.name}: ${caught.message}`
-                )
-                throw new Error("S3 upload failed")
-              } else {
-                throw caught
-              }
+              const imageUrl = await uploadFile(file.buffer, key)
+              await trx.insert(imagesTable).values({
+                recipeId,
+                imageUrl,
+                altText: `Image of ${title}`,
+                isPrimary: index === 0,
+              })
+            } catch (error) {
+              console.error("Error uploading image:", error)
+              throw new Error("Failed to upload image")
             }
-
-            const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Params.Key}`
-
-            await trx.insert(imagesTable).values({
-              recipeId,
-              imageUrl, // The S3 URL
-              altText: `Image of ${title}`,
-              isPrimary: index === 0, // Mark the first image as primary
-            })
           }
         } else {
           console.error("No files detected to upload.")
@@ -746,79 +708,45 @@ app.put(
           ? JSON.parse(removedImages)
           : []
 
-        if (Array.isArray(imagesToDelete) && imagesToDelete.length > 0) {
+        if (imagesToDelete.length > 0) {
           for (const imageUrl of imagesToDelete) {
-            console.log(imageUrl)
-            const key = imageUrl.split("/").slice(-1)[0] // Extract the key from the URL
-            const deleteCommand = new DeleteObjectCommand({
-              Bucket: process.env.S3_BUCKET_NAME,
-              Key: key,
-            })
-
+            const key = imageUrl.split("/").slice(-1)[0]
             try {
-              await s3Client.send(deleteCommand)
-            } catch (s3Error) {
-              console.error(`Error deleting image ${key} from S3:`, s3Error)
+              await deleteFile(key)
+              await trx
+                .delete(imagesTable)
+                .where(eq(imagesTable.imageUrl, imageUrl))
+            } catch (error) {
+              console.error(`Error deleting image ${key}:`, error)
             }
-
-            // Remove image record from the database
-            await trx
-              .delete(imagesTable)
-              .where(eq(imagesTable.imageUrl, imageUrl))
           }
-        } else {
-          console.log("No images to delete.")
         }
 
         // Step 5: Upload New Images to S3 (if provided)
         if (Array.isArray(req.files) && req.files.length > 0) {
           console.log(`Uploading ${req.files.length} images to S3...`)
           for (const [index, file] of req.files.entries()) {
-            const s3Params = {
-              Bucket: process.env.S3_BUCKET_NAME,
-              Key: `recipes/${Date.now()}-${file.originalname}`, // Unique filename
-              Body: file.buffer,
-              ContentType: file.mimetype,
-            }
-
-            const uploadCommand = new PutObjectCommand({
-              ...s3Params,
-            })
+            const key = `recipes/${Date.now()}-${file.originalname}`
             try {
-              const s3Response = await s3Client.send(uploadCommand)
-              console.log("S3 Response:", s3Response)
-            } catch (caught) {
-              if (
-                caught instanceof S3ServiceException &&
-                caught.name === "EntityTooLarge"
-              ) {
-                console.error("Image is too large:", caught)
-              } else if (caught instanceof S3ServiceException) {
-                console.error(
-                  `Error from S3 while uploading object to ${s3Params.Bucket}.  ${caught.name}: ${caught.message}`
-                )
-                throw new Error("S3 upload failed")
-              } else {
-                throw caught
-              }
+              const imageUrl = await uploadFile(file.buffer, key)
+              await trx.insert(imagesTable).values({
+                recipeId,
+                imageUrl,
+                altText: `Image of ${title}`,
+                isPrimary: index === 0,
+              })
+            } catch (error) {
+              console.error("Error uploading image:", error)
+              throw new Error("Failed to upload image")
             }
-
-            const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Params.Key}`
-
-            await trx.insert(imagesTable).values({
-              recipeId,
-              imageUrl, // The S3 URL
-              altText: `Image of ${title}`,
-              isPrimary: index === 0, // Mark the first image as primary
-            })
           }
         }
       })
 
-      res.status(200).json({ message: "Recipe updated successfully!" })
+      res.status(200).json({ message: "Recipe updated successfully" })
     } catch (error) {
       console.error("Error updating recipe:", error)
-      res.status(500).json({ error: "Failed to update recipe." })
+      res.status(500).json({ error: "Failed to update recipe" })
     }
   }
 )
@@ -885,20 +813,14 @@ app.delete(
 
         // Step 2: Delete images from AWS S3
         if (images.length > 0) {
-          const objectsToDelete = images.map((image) => ({
-            Key: image.imageUrl,
-          }))
-          const deleteCommand = new DeleteObjectsCommand({
-            Bucket: process.env.S3_BUCKET_NAME,
-            Delete: { Objects: objectsToDelete },
-          })
-
+          const keys = images.map(
+            (image) => image.imageUrl.split("/").slice(-1)[0]
+          )
           try {
-            await s3Client.send(deleteCommand)
-            console.log("Images deleted from S3 successfully.")
-          } catch (s3Error) {
-            console.error("Error deleting images from S3:", s3Error)
-            throw new Error("Failed to delete images from S3.")
+            await deleteFiles(keys)
+          } catch (error) {
+            console.error("Error deleting images from S3:", error)
+            throw new Error("Failed to delete images from S3")
           }
         }
 
