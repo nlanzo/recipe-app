@@ -16,8 +16,7 @@ import {
   savedRecipesTable,
   usersTable,
 } from "../db/schema.js"
-import { eq, and, gt, sql } from "drizzle-orm"
-import { AuthService } from "./services/authService.js"
+import { eq, and, sql } from "drizzle-orm"
 import { authenticateToken, AuthRequest } from "./middleware/auth.js"
 import bcrypt from "bcrypt"
 import { NodePgDatabase } from "drizzle-orm/node-postgres"
@@ -26,11 +25,17 @@ import http from "http"
 import path from "path"
 import { z } from "zod"
 import { handleChat } from "./controllers/chatController.js"
-import crypto from "crypto"
 import dotenv from "dotenv"
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses"
 import adminRoutes from "./routes/adminRoutes.js"
 import { uploadFile, deleteFile, deleteFiles } from "./services/s3Service.js"
+import {
+  forgotPasswordHandler,
+  resetPasswordHandler,
+  registerHandler,
+  loginHandler,
+  refreshTokenHandler,
+  logoutHandler,
+} from "./controllers/authController.js"
 
 // Load environment variables based on NODE_ENV
 const envFile =
@@ -78,9 +83,6 @@ const FRONTEND_URL =
 
 type DbType = NodePgDatabase<typeof schema>
 
-// Define custom type for async request handlers
-type AsyncRequestHandler = (req: Request, res: Response) => Promise<void>
-
 // Initialize Express app
 const app = express()
 const httpPort = 3000 // Use port 3000 for HTTP since Nginx will handle port 80
@@ -109,6 +111,14 @@ const upload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 })
+
+// Register auth routes
+app.post("/api/auth/forgot-password", forgotPasswordHandler)
+app.post("/api/auth/reset-password", resetPasswordHandler)
+app.post("/api/auth/register", registerHandler)
+app.post("/api/auth/login", loginHandler)
+app.post("/api/auth/refresh", refreshTokenHandler)
+app.post("/api/auth/logout", logoutHandler)
 
 // Validation schema for recipe creation
 const recipeSchema = z.object({
@@ -859,299 +869,6 @@ app.delete(
     }
   }
 )
-
-// Configure AWS SES client
-const sesClient = new SESClient({
-  region: process.env.AWS_REGION?.trim(),
-  credentials: {
-    accessKeyId:
-      (
-        process.env.AWS_SES_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID
-      )?.trim() ?? "",
-    secretAccessKey:
-      (
-        process.env.AWS_SES_SECRET_ACCESS_KEY ||
-        process.env.AWS_SECRET_ACCESS_KEY
-      )?.trim() ?? "",
-  },
-})
-
-// Helper function to send emails using SES
-async function sendEmail(to: string, subject: string, html: string) {
-  try {
-    const params = {
-      Source: process.env.SMTP_FROM?.trim() ?? "noreply@chopchoprecipes.com",
-      Destination: {
-        ToAddresses: [to.trim()],
-      },
-      Message: {
-        Subject: {
-          Data: subject,
-          Charset: "UTF-8",
-        },
-        Body: {
-          Html: {
-            Data: html,
-            Charset: "UTF-8",
-          },
-        },
-      },
-    }
-
-    console.log("Attempting to send email with params:", {
-      source: params.Source,
-      to: params.Destination.ToAddresses,
-      subject: params.Message.Subject.Data,
-      region: process.env.AWS_REGION?.trim(),
-      hasAccessKey: Boolean(
-        process.env.AWS_SES_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID
-      ),
-      hasSecretKey: Boolean(
-        process.env.AWS_SES_SECRET_ACCESS_KEY ||
-          process.env.AWS_SECRET_ACCESS_KEY
-      ),
-    })
-
-    const command = new SendEmailCommand(params)
-    const result = await sesClient.send(command)
-    console.log("Email sent successfully:", result.MessageId)
-    return result
-  } catch (error) {
-    console.error("Error details:", {
-      error,
-      credentials: {
-        region: process.env.AWS_REGION?.trim(),
-        accessKeyId:
-          process.env.AWS_SES_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID
-            ? "Set"
-            : "Not set",
-        secretAccessKey:
-          process.env.AWS_SES_SECRET_ACCESS_KEY ||
-          process.env.AWS_SECRET_ACCESS_KEY
-            ? "Set"
-            : "Not set",
-        smtpFrom: process.env.SMTP_FROM?.trim(),
-      },
-    })
-    throw new Error("Failed to send email")
-  }
-}
-
-interface ForgotPasswordRequest {
-  email: string
-}
-
-interface ResetPasswordRequest {
-  token: string
-  password: string
-}
-
-// Define request handlers with proper types
-const forgotPasswordHandler: AsyncRequestHandler = async (req, res) => {
-  try {
-    const { email } = req.body as ForgotPasswordRequest
-
-    // Find user by email
-    const [user] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.email, email))
-      .limit(1)
-
-    if (!user) {
-      // Return success even if user doesn't exist to prevent email enumeration
-      res.json({
-        message:
-          "If an account exists with this email, you will receive a password reset link.",
-      })
-      return
-    }
-
-    // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString("hex")
-    const resetTokenHash = await bcrypt.hash(resetToken, 10)
-    const resetTokenExpiry = new Date(Date.now() + 3600000) // 1 hour from now
-
-    // Store reset token in database
-    await db
-      .update(usersTable)
-      .set({
-        resetTokenHash,
-        resetTokenExpiry,
-      })
-      .where(eq(usersTable.id, user.id))
-
-    // Generate reset URL
-    const passwordResetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`
-    console.log("Generated reset URL (domain only):", FRONTEND_URL)
-
-    // Send reset email
-    await sendEmail(
-      email,
-      "Password Reset Request - ChopChop Recipes",
-      `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2c3e50;">Password Reset Request</h2>
-        <p>You requested a password reset for your ChopChop Recipes account.</p>
-        <p>Click the button below to reset your password:</p>
-        <a href="${passwordResetUrl}" style="display: inline-block; background-color: #3498db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 16px 0;">Reset Password</a>
-        <p style="color: #7f8c8d; font-size: 0.9em;">This link will expire in 1 hour.</p>
-        <p style="color: #7f8c8d; font-size: 0.9em;">If you didn't request this, please ignore this email.</p>
-        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-        <p style="color: #7f8c8d; font-size: 0.8em;">ChopChop Recipes - Your Personal Recipe Collection</p>
-      </div>
-      `
-    )
-
-    res.json({
-      message:
-        "If an account exists with this email, you will receive a password reset link.",
-    })
-  } catch (error) {
-    console.error("Error in forgot-password:", error)
-    res.status(500).json({ error: "Failed to process password reset request" })
-  }
-}
-
-const resetPasswordHandler: AsyncRequestHandler = async (req, res) => {
-  try {
-    const { token, password } = req.body as ResetPasswordRequest
-
-    // Find user with non-expired reset token
-    const [user] = await db
-      .select()
-      .from(usersTable)
-      .where(
-        and(
-          gt(usersTable.resetTokenExpiry, new Date()),
-          // Only select users that have a reset token
-          // This avoids unnecessary bcrypt comparisons
-          sql`${usersTable.resetTokenHash} is not null`
-        )
-      )
-      .limit(1)
-
-    if (!user || !user.resetTokenHash) {
-      res.status(400).json({ error: "Invalid or expired reset token" })
-      return
-    }
-
-    // Verify the reset token
-    const isValidToken = await bcrypt.compare(token, user.resetTokenHash)
-    if (!isValidToken) {
-      res.status(400).json({ error: "Invalid or expired reset token" })
-      return
-    }
-
-    // Update password and clear reset token
-    const passwordHash = await bcrypt.hash(password, 10)
-    await db
-      .update(usersTable)
-      .set({
-        passwordHash,
-        resetTokenHash: null,
-        resetTokenExpiry: null,
-      })
-      .where(eq(usersTable.id, user.id))
-
-    res.json({ message: "Password has been reset successfully" })
-  } catch (error) {
-    console.error("Error in reset-password:", error)
-    res.status(500).json({ error: "Failed to reset password" })
-  }
-}
-
-// Register routes with the app
-app.post("/api/auth/forgot-password", forgotPasswordHandler)
-app.post("/api/auth/reset-password", resetPasswordHandler)
-
-// Add these routes to your existing Express app
-app.post("/api/auth/register", async (req, res) => {
-  try {
-    const { username, email, password } = req.body
-    const result = await AuthService.register({ username, email, password })
-
-    // Set refresh token in HTTP-only cookie
-    res.cookie("refreshToken", result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    })
-
-    // Send access token in response
-    res.json({
-      user: result.user,
-      accessToken: result.accessToken,
-    })
-  } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Registration failed"
-    res.status(400).json({ error: errorMessage })
-  }
-})
-
-app.post("/api/auth/login", async (req, res) => {
-  try {
-    const { email, password } = req.body
-    const result = await AuthService.login({ email, password })
-
-    // Set refresh token in HTTP-only cookie
-    res.cookie("refreshToken", result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    })
-
-    // Send access token in response
-    res.json({
-      user: result.user,
-      accessToken: result.accessToken,
-    })
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Login failed"
-    res.status(401).json({ error: errorMessage })
-  }
-})
-
-app.post("/api/auth/refresh", async (req, res) => {
-  try {
-    const refreshToken = req.cookies.refreshToken
-    if (!refreshToken) {
-      throw new Error("No refresh token provided")
-    }
-
-    const accessToken = await AuthService.refreshAccessToken(refreshToken)
-    res.json({ accessToken })
-  } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Token refresh failed"
-    res.status(401).json({ error: errorMessage })
-  }
-})
-
-app.post("/api/auth/logout", async (req, res) => {
-  try {
-    const refreshToken = req.cookies.refreshToken
-    if (refreshToken) {
-      await AuthService.logout(refreshToken)
-    }
-
-    // Clear the refresh token cookie
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    })
-
-    res.json({ message: "Logged out successfully" })
-  } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Logout failed"
-    res.status(500).json({ error: errorMessage })
-  }
-})
 
 // Save a recipe
 app.post(
