@@ -152,6 +152,23 @@ export default function Recipes() {
                 value={sortBy}
                 label="Sort By"
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
+                MenuProps={{
+                  disableScrollLock: true,
+                  PaperProps: {
+                    sx: {
+                      width: "auto",
+                      maxHeight: "300px",
+                    },
+                  },
+                  anchorOrigin: {
+                    vertical: "bottom",
+                    horizontal: "right",
+                  },
+                  transformOrigin: {
+                    vertical: "top",
+                    horizontal: "right",
+                  },
+                }}
               >
                 <MenuItem value="">None</MenuItem>
                 <MenuItem value="title">Title</MenuItem>
