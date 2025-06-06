@@ -92,7 +92,14 @@ export default function RecipeDetails() {
           <Divider sx={{ my: 2 }} />
 
           {/* Image Carousel */}
-          <Box sx={{ position: "relative", mb: 4 }}>
+          <Box
+            sx={{
+              position: "relative",
+              mb: 4,
+              maxWidth: "800px",
+              mx: "auto",
+            }}
+          >
             <CardMedia
               component="img"
               image={data.data?.images[currentImageIndex].imageUrl}
