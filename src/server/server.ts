@@ -1125,12 +1125,6 @@ app.post("/api/chat", async (req: Request, res: Response) => {
 // Admin routes
 app.use("/api/admin", adminRoutes)
 
-// Add this after all your API routes, just before app.listen
-// Catch-all route to serve index.html for client-side routing
-app.get("*", (_req, res) => {
-  res.sendFile("index.html", { root: "dist" })
-})
-
 // Enable detailed error logging
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error("Error:", {
@@ -1146,6 +1140,10 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     path: req.path,
   })
   next(err) // Propagate error to Express's default error handler
+})
+
+app.get("*", (_req, res) => {
+  res.sendFile("index.html", { root: "dist" })
 })
 
 // Start the server

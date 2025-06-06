@@ -8,7 +8,7 @@ import {
   Divider,
 } from "@mui/material"
 import Grid from "@mui/material/Grid2"
-import { useParams } from "react-router-dom"
+import { useParams, Navigate } from "react-router-dom"
 import { useDataLoader } from "../components/useDataLoader"
 import DeleteRecipeButton from "../components/DeleteRecipeButton"
 import EditRecipeButton from "../components/EditRecipeButton"
@@ -16,7 +16,7 @@ import SaveRecipeButton from "../components/SaveRecipeButton"
 import { useAuth } from "../contexts/useAuth"
 
 interface RecipeDetails {
-  name: string
+  title: string
   author: string | null
   userId: number
   categories: string[]
@@ -38,6 +38,11 @@ export default function RecipeDetails() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const data = useDataLoader<RecipeDetails>(`/api/recipes/${id}`)
   const { user: currentUser } = useAuth()
+
+  // Handle 404 case - recipe not found
+  if (!data.isLoading && data.data && !data.data.title) {
+    return <Navigate to="/not-found" replace />
+  }
 
   const handleNextImage = () => {
     setCurrentImageIndex((prevIndex) =>
@@ -76,7 +81,7 @@ export default function RecipeDetails() {
               color: "secondary.main",
             }}
           >
-            {data.data?.name}
+            {data.data?.title}
           </Typography>
 
           {/* Author */}
