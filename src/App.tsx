@@ -18,6 +18,7 @@ import Account from "./pages/Account"
 import RecipeChatPage from "./pages/RecipeChat"
 import AdminRoute from "./components/AdminRoute"
 import AdminPanel from "./components/AdminPanel"
+import NotFound from "./pages/NotFound"
 
 export default function App() {
   return (
@@ -76,6 +77,8 @@ export default function App() {
                   </AdminRoute>
                 }
               />
+              {/* Catch-all route for 404s */}
+              <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
         </BrowserRouter>
