@@ -288,7 +288,7 @@ app.get("/api/recipes", async (req: Request, res: Response): Promise<void> => {
       .orderBy(
         sort === "title"
           ? sql`${recipesTable.title} asc NULLS LAST, ${recipesTable.id} asc`
-          : sql`${recipesTable.createdAt} desc NULLS LAST, ${recipesTable.id} asc`
+          : sql`${recipesTable.totalTimeInMinutes} asc NULLS LAST, ${recipesTable.id} asc`
       )
       .offset(offset)
       .limit(limit + 1)
@@ -372,7 +372,7 @@ app.get("/api/recipes/search", async (req, res) => {
       .orderBy(
         sort === "title"
           ? sql`${recipesTable.title} asc NULLS LAST, ${recipesTable.id} asc`
-          : sql`${recipesTable.createdAt} desc NULLS LAST, ${recipesTable.id} asc`
+          : sql`${recipesTable.totalTimeInMinutes} asc NULLS LAST, ${recipesTable.id} asc`
       )
       .limit(limit + 1)
       .offset(offset)
