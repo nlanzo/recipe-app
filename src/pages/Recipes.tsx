@@ -34,14 +34,14 @@ interface RecipeResponse {
   }
 }
 
-type SortOption = "" | "title" | "time"
+type SortOption = "title" | "time"
 
 export default function Recipes() {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
-  const [sortBy, setSortBy] = useState<SortOption>("")
+  const [sortBy, setSortBy] = useState<SortOption>("title")
   const [currentPage, setCurrentPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -170,7 +170,6 @@ export default function Recipes() {
                   },
                 }}
               >
-                <MenuItem value="">None</MenuItem>
                 <MenuItem value="title">Title</MenuItem>
                 <MenuItem value="time">Prep Time</MenuItem>
               </Select>
