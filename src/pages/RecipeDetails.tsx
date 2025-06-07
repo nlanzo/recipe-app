@@ -134,24 +134,52 @@ export default function RecipeDetails() {
                 <Box
                   sx={{
                     position: "absolute",
-                    top: "50%",
-                    left: 0,
-                    transform: "translateY(-50%)",
+                    bottom: 8,
+                    left: 8,
+                    transform: "none",
                   }}
                 >
-                  <Button onClick={handlePrevImage} variant="contained">
+                  <Button
+                    onClick={handlePrevImage}
+                    variant="contained"
+                    size="small"
+                    sx={{
+                      minWidth: "32px",
+                      width: "32px",
+                      height: "32px",
+                      padding: 0,
+                      backgroundColor: "rgba(0, 0, 0, 0.6)",
+                      "&:hover": {
+                        backgroundColor: "rgba(0, 0, 0, 0.8)",
+                      },
+                    }}
+                  >
                     {"<"}
                   </Button>
                 </Box>
                 <Box
                   sx={{
                     position: "absolute",
-                    top: "50%",
-                    right: 0,
-                    transform: "translateY(-50%)",
+                    bottom: 8,
+                    right: 8,
+                    transform: "none",
                   }}
                 >
-                  <Button onClick={handleNextImage} variant="contained">
+                  <Button
+                    onClick={handleNextImage}
+                    variant="contained"
+                    size="small"
+                    sx={{
+                      minWidth: "32px",
+                      width: "32px",
+                      height: "32px",
+                      padding: 0,
+                      backgroundColor: "rgba(0, 0, 0, 0.6)",
+                      "&:hover": {
+                        backgroundColor: "rgba(0, 0, 0, 0.8)",
+                      },
+                    }}
+                  >
                     {">"}
                   </Button>
                 </Box>
