@@ -6,8 +6,8 @@ import {
   CardMedia,
   Stack,
   Divider,
+  Grid,
 } from "@mui/material"
-import Grid from "@mui/material/Grid2"
 import { useParams, Navigate } from "react-router-dom"
 import { useDataLoader } from "../components/useDataLoader"
 import DeleteRecipeButton from "../components/DeleteRecipeButton"
@@ -91,72 +91,94 @@ export default function RecipeDetails() {
 
           <Divider sx={{ my: 2 }} />
 
-          {/* Image Carousel */}
-          <Box
-            sx={{
-              position: "relative",
-              mb: 4,
-              maxWidth: "800px",
-              mx: "auto",
-            }}
-          >
-            <CardMedia
-              component="img"
-              image={data.data?.images[currentImageIndex].imageUrl}
-              alt={
-                data.data?.images[currentImageIndex].altText || "Recipe image"
-              }
-              sx={{
-                width: "100%",
-                maxHeight: "400px",
-                objectFit: "cover",
-                borderRadius: 2,
-              }}
-            />
-            <Box
-              sx={{
-                position: "absolute",
-                top: "50%",
-                left: 0,
-                transform: "translateY(-50%)",
-              }}
-            >
-              <Button onClick={handlePrevImage} variant="contained">
-                {"<"}
-              </Button>
-            </Box>
-            <Box
-              sx={{
-                position: "absolute",
-                top: "50%",
-                right: 0,
-                transform: "translateY(-50%)",
-              }}
-            >
-              <Button onClick={handleNextImage} variant="contained">
-                {">"}
-              </Button>
-            </Box>
-          </Box>
+          {/* Image and Description Layout */}
+          <Grid container spacing={4}>
+            {/* Image Carousel */}
+            <Grid item xs={12} md={6}>
+              <Box
+                sx={{
+                  position: "relative",
+                  mb: 4,
+                  // Fixed widths at different breakpoints
+                  width: {
+                    xs: "100%", // Full width on mobile
+                    sm: "400px", // Fixed width on small screens
+                    md: "400px", // Slightly smaller on medium screens to fit with description
+                    lg: "500px", // Larger on big screens
+                  },
+                  // Create a 16:9 aspect ratio container
+                  "&::before": {
+                    content: '""',
+                    display: "block",
+                    paddingTop: "56.25%", // 9/16 = 0.5625
+                  },
+                }}
+              >
+                <CardMedia
+                  component="img"
+                  image={data.data?.images[currentImageIndex].imageUrl}
+                  alt={
+                    data.data?.images[currentImageIndex].altText ||
+                    "Recipe image"
+                  }
+                  sx={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    borderRadius: 2,
+                  }}
+                />
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: "50%",
+                    left: 0,
+                    transform: "translateY(-50%)",
+                  }}
+                >
+                  <Button onClick={handlePrevImage} variant="contained">
+                    {"<"}
+                  </Button>
+                </Box>
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: "50%",
+                    right: 0,
+                    transform: "translateY(-50%)",
+                  }}
+                >
+                  <Button onClick={handleNextImage} variant="contained">
+                    {">"}
+                  </Button>
+                </Box>
+              </Box>
+            </Grid>
 
-          {/* Description */}
-          <Typography variant="body1" gutterBottom>
-            {data.data?.description}
-          </Typography>
+            {/* Description */}
+            <Grid item xs={12} md={6}>
+              <Typography variant="body1" gutterBottom>
+                {data.data?.description}
+              </Typography>
+            </Grid>
+          </Grid>
 
           <Divider sx={{ my: 2 }} />
 
           {/* Recipe Details */}
           <Grid container spacing={2}>
-            <Grid size={{ xs: 4 }}>
+            <Grid item xs={4}>
               <Typography variant="subtitle2">Active Time:</Typography>
               <Typography>{data.data?.activeTimeInMinutes} minutes</Typography>
             </Grid>
-            <Grid size={{ xs: 4 }}>
+            <Grid item xs={4}>
               <Typography variant="subtitle2">Total Time:</Typography>
               <Typography>{data.data?.totalTimeInMinutes} minutes</Typography>
             </Grid>
-            <Grid size={{ xs: 4 }}>
+            <Grid item xs={4}>
               <Typography variant="subtitle2">Servings:</Typography>
               <Typography>{data.data?.numberOfServings}</Typography>
             </Grid>
