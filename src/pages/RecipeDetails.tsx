@@ -102,9 +102,9 @@ export default function RecipeDetails() {
                   // Fixed widths at different breakpoints
                   width: {
                     xs: "100%", // Full width on mobile
-                    sm: "400px", // Fixed width on small screens
-                    md: "400px", // Slightly smaller on medium screens to fit with description
-                    lg: "500px", // Larger on big screens
+                    sm: "450px", // Slightly wider on small screens
+                    md: "500px", // Wider on medium screens
+                    lg: "550px", // Even wider on big screens
                   },
                   // Create a 16:9 aspect ratio container
                   "&::before": {
