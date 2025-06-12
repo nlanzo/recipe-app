@@ -411,6 +411,14 @@ export default function AdminPanel() {
             value={selectedTab}
             onChange={handleTabChange}
             aria-label="admin panel tabs"
+            sx={{
+              "& .MuiTab-root": {
+                transition: "background-color 0.2s",
+                "&:hover": {
+                  backgroundColor: "rgba(0, 0, 0, 0.04)",
+                },
+              },
+            }}
           >
             <Tab label="Users" {...a11yProps(0)} />
             <Tab label="Recipes" {...a11yProps(1)} />
