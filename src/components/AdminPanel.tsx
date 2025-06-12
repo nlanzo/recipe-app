@@ -413,9 +413,11 @@ export default function AdminPanel() {
             aria-label="admin panel tabs"
             sx={{
               "& .MuiTab-root": {
-                transition: "background-color 0.2s",
+                color: "secondary.main",
+                transition: "all 0.2s",
                 "&:hover": {
-                  backgroundColor: "rgba(0, 0, 0, 0.04)",
+                  color: "white",
+                  backgroundColor: "rgba(0, 0, 0, 0.2)",
                 },
               },
             }}
