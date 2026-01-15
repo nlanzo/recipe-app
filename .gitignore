@@ -28,11 +28,7 @@ dist-ssr
 src/db/migrations/*
 
 #scripts
-deploy.sh
-deploy-to-ec2.sh
-start-server.sh
-setup-ssl.sh
-setup-nginx.sh
+deploy-scripts/*
 ecosystem.config.cjs
 scripts/*
 scripts
