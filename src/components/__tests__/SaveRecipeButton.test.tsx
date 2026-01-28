@@ -14,9 +14,10 @@ vi.mock("react-router-dom", async () => {
   }
 })
 
-// Mock authenticatedFetch
+// Mock authenticatedFetch and createAuthenticatedFetch
 vi.mock("../../utils/auth", () => ({
   authenticatedFetch: vi.fn(),
+  createAuthenticatedFetch: vi.fn(() => vi.fn()),
 }))
 
 // Mock useAuth hook
@@ -26,6 +27,7 @@ vi.mock("../../contexts/useAuth", () => ({
 
 const mockNavigate = vi.fn()
 const mockAuthenticatedFetch = vi.fn()
+const mockCreateAuthenticatedFetch = vi.fn(() => mockAuthenticatedFetch)
 
 describe("SaveRecipeButton", () => {
   // Reset mocks before each test
@@ -45,6 +47,9 @@ describe("SaveRecipeButton", () => {
 
     vi.mocked(authUtils.authenticatedFetch).mockImplementation(
       mockAuthenticatedFetch
+    )
+    vi.mocked(authUtils.createAuthenticatedFetch).mockImplementation(
+      mockCreateAuthenticatedFetch
     )
   })
 
