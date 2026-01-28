@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { authenticatedFetch } from "../utils/api"
+import { createAuthenticatedFetch } from "../utils/auth"
 
 export function useDataLoader<T>(url: string) {
   const [data, setData] = useState<T | null>(null)
@@ -12,24 +12,14 @@ export function useDataLoader<T>(url: string) {
     async function fetchData() {
       try {
         setIsLoading(true)
-        let response
-
-        // Check if this is a public route
-        // All GET requests to /api/recipes endpoints are public (list, search, individual recipes)
-        // Only POST/PUT/DELETE require authentication, but useDataLoader only makes GET requests
-        const isPublicRoute = url.startsWith("/api/recipes")
-
-        if (isPublicRoute) {
-          // Use regular fetch for public routes
-          response = await fetch(url, {
-            signal: abortController.signal,
-          })
-        } else {
-          // Use authenticatedFetch for protected routes
-          response = await authenticatedFetch(url, {
-            signal: abortController.signal,
-          })
-        }
+        
+        // Use authenticatedFetch with preventRedirect for all routes
+        // This allows public routes to work even if the token is expired,
+        // and protected routes will still work if authenticated
+        const safeFetch = createAuthenticatedFetch({ preventRedirect: true })
+        const response = await safeFetch(url, {
+          signal: abortController.signal,
+        })
 
         setResponse(response)
 

@@ -46,8 +46,10 @@ export const refreshAccessToken = async (): Promise<string> => {
   }
 }
 
-export const createAuthenticatedFetch = () => {
+export const createAuthenticatedFetch = (options?: { preventRedirect?: boolean }) => {
   return async (input: RequestInfo | URL, init?: RequestInit) => {
+    const preventRedirect = options?.preventRedirect || false
+    
     // Try to get the access token
     let token = getAccessToken()
 
@@ -56,8 +58,10 @@ export const createAuthenticatedFetch = () => {
       try {
         token = await refreshAccessToken()
       } catch (error) {
-        // If refresh fails, redirect to login
-        window.location.href = "/login"
+        // If refresh fails, redirect to login unless prevented
+        if (!preventRedirect) {
+          window.location.href = "/login"
+        }
         throw error
       }
     }
@@ -84,8 +88,10 @@ export const createAuthenticatedFetch = () => {
           headers,
         })
       } catch (error) {
-        // If refresh fails, redirect to login
-        window.location.href = "/login"
+        // If refresh fails, redirect to login unless prevented
+        if (!preventRedirect) {
+          window.location.href = "/login"
+        }
         throw error
       }
     }
