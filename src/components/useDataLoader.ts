@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react"
 import { authenticatedFetch } from "../utils/api"
 
-// Define public routes that don't require authentication
-const publicRoutes = ["/api/recipes", "/api/recipes/"]
-
 export function useDataLoader<T>(url: string) {
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -18,9 +15,9 @@ export function useDataLoader<T>(url: string) {
         let response
 
         // Check if this is a public route
-        const isPublicRoute = publicRoutes.some((route) =>
-          url.startsWith(route)
-        )
+        // All GET requests to /api/recipes endpoints are public (list, search, individual recipes)
+        // Only POST/PUT/DELETE require authentication, but useDataLoader only makes GET requests
+        const isPublicRoute = url.startsWith("/api/recipes")
 
         if (isPublicRoute) {
           // Use regular fetch for public routes
