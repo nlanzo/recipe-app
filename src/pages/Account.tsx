@@ -1,14 +1,23 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Box, Typography, TextField, Button, Paper, Alert } from "@mui/material"
 import { useAuth } from "../contexts/useAuth"
+import { useNavigate } from "react-router-dom"
 
 export default function Account() {
   const { user, token } = useAuth()
+  const navigate = useNavigate()
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  // Defensive: if token was cleared, bounce to login (ProtectedRoute should handle this too)
+  useEffect(() => {
+    if (!token) {
+      navigate("/login", { replace: true, state: { returnTo: "/account" } })
+    }
+  }, [token, navigate])
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()

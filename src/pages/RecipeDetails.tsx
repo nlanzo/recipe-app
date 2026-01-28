@@ -238,13 +238,14 @@ export default function RecipeDetails() {
             <Typography variant="body1">{data.data?.instructions}</Typography>
           </Box>
           <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-            {(data.data?.userId === currentUser?.id ||
-              currentUser?.isAdmin) && (
-              <>
-                <EditRecipeButton id={id!} />
-                <DeleteRecipeButton id={id!} />
-              </>
-            )}
+            {data.data &&
+              (data.data.userId === currentUser?.id ||
+                currentUser?.isAdmin) && (
+                <>
+                  <EditRecipeButton id={id!} />
+                  <DeleteRecipeButton id={id!} />
+                </>
+              )}
             <SaveRecipeButton recipeId={id!} />
           </Box>
         </Box>

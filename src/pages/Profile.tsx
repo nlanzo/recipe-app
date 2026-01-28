@@ -1,10 +1,11 @@
-import { Box, Typography, Tabs, Tab, Button } from "@mui/material"
+import { Box, Typography, Tabs, Tab } from "@mui/material"
 import { useState, useEffect } from "react"
 import Grid from "@mui/material/Grid2"
 import RecipeCard from "../components/RecipeCard"
 import { useDataLoader } from "../components/useDataLoader"
 import { RecipeCardProps } from "../components/RecipeCard"
 import { useNavigate } from "react-router-dom"
+import { useAuth } from "../contexts/useAuth"
 
 interface UserProfile {
   username: string
@@ -14,8 +15,8 @@ interface UserProfile {
 
 export default function Profile() {
   const [activeTab, setActiveTab] = useState(0)
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true)
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
   const savedRecipes = useDataLoader<RecipeCardProps[]>(
     "/api/user/saved-recipes"
@@ -23,52 +24,33 @@ export default function Profile() {
   const myRecipes = useDataLoader<RecipeCardProps[]>("/api/user/my-recipes")
   const userProfile = useDataLoader<UserProfile>("/api/user/profile")
 
-  // Check for authentication errors in any of the responses
+  // If auth is no longer valid, redirect to login (ProtectedRoute should normally catch this,
+  // but this is a defensive fallback for mid-session expiry).
   useEffect(() => {
     if (
-      savedRecipes.error ||
-      myRecipes.error ||
-      userProfile.error ||
       savedRecipes.response?.status === 401 ||
+      savedRecipes.response?.status === 403 ||
       myRecipes.response?.status === 401 ||
-      userProfile.response?.status === 401
+      myRecipes.response?.status === 403 ||
+      userProfile.response?.status === 401 ||
+      userProfile.response?.status === 403
     ) {
-      setIsAuthenticated(false)
+      logout()
+        .catch(() => {})
+        .finally(() => {
+          navigate("/login", { replace: true, state: { returnTo: "/profile" } })
+        })
     }
   }, [
-    savedRecipes.error,
-    myRecipes.error,
-    userProfile.error,
     savedRecipes.response,
     myRecipes.response,
     userProfile.response,
+    logout,
+    navigate,
   ])
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue)
-  }
-
-  const handleLogin = () => {
-    navigate("/login")
-  }
-
-  // If not authenticated, show login prompt
-  if (!isAuthenticated) {
-    return (
-      <Box sx={{ maxWidth: "xl", mx: "auto", p: 4, textAlign: "center" }}>
-        <Typography variant="h4" sx={{ mb: 4 }}>
-          Please log in to view your profile
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleLogin}
-          size="large"
-        >
-          Log In
-        </Button>
-      </Box>
-    )
   }
 
   return (

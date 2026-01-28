@@ -10,6 +10,11 @@ export const setAccessToken = (token: string | null): void => {
   } else {
     localStorage.removeItem("token")
   }
+
+  // Notify listeners (e.g. AuthProvider) that auth state changed
+  window.dispatchEvent(
+    new CustomEvent("auth:token", { detail: { token: accessToken } })
+  )
 }
 
 export const refreshAccessToken = async (): Promise<string> => {

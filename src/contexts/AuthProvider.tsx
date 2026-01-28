@@ -1,12 +1,38 @@
 import { useState, useEffect, ReactNode } from "react"
 import { User } from "./types"
 import { AuthContext } from "./AuthContext"
-import { setAccessToken, refreshAccessToken } from "../utils/auth"
+import { getAccessToken, setAccessToken, refreshAccessToken } from "../utils/auth"
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Keep context state in sync with the token stored by utils/auth
+  useEffect(() => {
+    const syncFromUtil = () => {
+      const t = getAccessToken()
+      setToken(t)
+      if (!t) {
+        setUser(null)
+        localStorage.removeItem("user")
+      }
+    }
+
+    syncFromUtil()
+
+    const onToken = () => syncFromUtil()
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "token") syncFromUtil()
+    }
+
+    window.addEventListener("auth:token", onToken as EventListener)
+    window.addEventListener("storage", onStorage)
+    return () => {
+      window.removeEventListener("auth:token", onToken as EventListener)
+      window.removeEventListener("storage", onStorage)
+    }
+  }, [])
 
   useEffect(() => {
     const initialize = async () => {
@@ -16,6 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedUser = localStorage.getItem("user")
 
         if (storedToken && storedUser) {
+          // Ensure the shared token store is updated too
+          setAccessToken(storedToken)
           setToken(storedToken)
           setUser(JSON.parse(storedUser))
         } else {

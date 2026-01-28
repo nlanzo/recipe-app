@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { createAuthenticatedFetch } from "../utils/auth"
+import { createAuthenticatedFetch, getAccessToken } from "../utils/auth"
 
 export function useDataLoader<T>(url: string) {
   const [data, setData] = useState<T | null>(null)
@@ -13,13 +13,29 @@ export function useDataLoader<T>(url: string) {
       try {
         setIsLoading(true)
         
-        // Use authenticatedFetch with preventRedirect for all routes
-        // This allows public routes to work even if the token is expired,
-        // and protected routes will still work if authenticated
-        const safeFetch = createAuthenticatedFetch({ preventRedirect: true })
-        const response = await safeFetch(url, {
-          signal: abortController.signal,
-        })
+        let response: Response
+        
+        // Try authenticated fetch first if we have a token
+        const token = getAccessToken()
+        if (token) {
+          try {
+            const safeFetch = createAuthenticatedFetch({ preventRedirect: true })
+            response = await safeFetch(url, {
+              signal: abortController.signal,
+            })
+          } catch (authError) {
+            // If authenticated fetch fails (e.g., refresh token expired),
+            // fall back to regular fetch for public endpoints
+            response = await fetch(url, {
+              signal: abortController.signal,
+            })
+          }
+        } else {
+          // No token, use regular fetch for public endpoints
+          response = await fetch(url, {
+            signal: abortController.signal,
+          })
+        }
 
         setResponse(response)
 
