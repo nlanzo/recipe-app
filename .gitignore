@@ -35,3 +35,16 @@ scripts
 
 #certs
 certs/private-key.pem
+
+# .NET
+RecipeApp.Api/bin/
+RecipeApp.Api/obj/
+RecipeApp.Api/*.user
+RecipeApp.Api/*.suo
+RecipeApp.Api/*.userosscache
+RecipeApp.Api/*.sln.docstates
+RecipeApp.Api/.vs/
+RecipeApp.Api/.vscode/
+RecipeApp.Api/appsettings.Development.json
+RecipeApp.Api/appsettings.Production.json
+RecipeApp.Api/dotnet_migration_docs/
