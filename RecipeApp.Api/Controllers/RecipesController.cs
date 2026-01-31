@@ -30,7 +30,7 @@ public class RecipesController : ControllerBase
     /// <response code="200">Returns the list of recipes</response>
     /// <response code="500">If there was an error fetching recipes</response>
     [HttpGet]
-    public async Task<ActionResult<PaginatedResult<RecipeResponseDto>>> GetRecipes(
+    public async Task<ActionResult<RecipesListResponseDto>> GetRecipes(
         [FromQuery] int page = 1,
         [FromQuery] string? search = null,
         [FromQuery] string? sort = null)
@@ -38,7 +38,17 @@ public class RecipesController : ControllerBase
         try
         {
             var result = await _recipeService.GetRecipesAsync(page, search, sort);
-            return Ok(result);
+            return Ok(new RecipesListResponseDto
+            {
+                Recipes = result.Items,
+                Pagination = new PaginationInfo
+                {
+                    Total = result.Total,
+                    HasMore = result.HasMore,
+                    CurrentPage = result.CurrentPage,
+                    TotalPages = result.TotalPages
+                }
+            });
         }
         catch (Exception ex)
         {
@@ -57,7 +67,7 @@ public class RecipesController : ControllerBase
     /// <response code="400">If the query parameter is missing or empty</response>
     /// <response code="500">If there was an error searching recipes</response>
     [HttpGet("search")]
-    public async Task<ActionResult<PaginatedResult<RecipeResponseDto>>> SearchRecipes(
+    public async Task<ActionResult<RecipesListResponseDto>> SearchRecipes(
         [FromQuery] string query,
         [FromQuery] int page = 1,
         [FromQuery] string? sort = null)
@@ -70,7 +80,17 @@ public class RecipesController : ControllerBase
             }
 
             var result = await _recipeService.SearchRecipesAsync(query, page, sort);
-            return Ok(result);
+            return Ok(new RecipesListResponseDto
+            {
+                Recipes = result.Items,
+                Pagination = new PaginationInfo
+                {
+                    Total = result.Total,
+                    HasMore = result.HasMore,
+                    CurrentPage = result.CurrentPage,
+                    TotalPages = result.TotalPages
+                }
+            });
         }
         catch (Exception ex)
         {

@@ -10,6 +10,22 @@ import {
   Box,
   Link,
 } from "@mui/material"
+import { z } from "zod"
+
+const registerSchema = z.object({
+  username: z.string()
+    .min(3, "Username must be at least 3 characters")
+    .max(50, "Username must be 50 characters or less")
+    .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+  email: z.string()
+    .email("Please enter a valid email address"),
+  password: z.string()
+    .min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+})
 
 export default function Register() {
   const [username, setUsername] = useState("")
@@ -17,15 +33,34 @@ export default function Register() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const navigate = useNavigate()
   const { login } = useAuth()
+
+  const validateForm = (): boolean => {
+    try {
+      registerSchema.parse({ username, email, password, confirmPassword })
+      setFieldErrors({})
+      return true
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const errors: Record<string, string> = {}
+        err.errors.forEach((error) => {
+          const path = error.path[0] as string
+          errors[path] = error.message
+        })
+        setFieldErrors(errors)
+      }
+      return false
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setFieldErrors({})
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match")
+    if (!validateForm()) {
       return
     }
 
@@ -77,36 +112,56 @@ export default function Register() {
             fullWidth
             label="Username"
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e) => {
+              setUsername(e.target.value)
+              if (fieldErrors.username) validateForm()
+            }}
             margin="normal"
             required
+            error={!!fieldErrors.username}
+            helperText={fieldErrors.username}
           />
           <TextField
             fullWidth
             label="Email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              if (fieldErrors.email) validateForm()
+            }}
             margin="normal"
             required
+            error={!!fieldErrors.email}
+            helperText={fieldErrors.email}
           />
           <TextField
             fullWidth
             label="Password"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value)
+              if (fieldErrors.password || fieldErrors.confirmPassword) validateForm()
+            }}
             margin="normal"
             required
+            error={!!fieldErrors.password}
+            helperText={fieldErrors.password}
           />
           <TextField
             fullWidth
             label="Confirm Password"
             type="password"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={(e) => {
+              setConfirmPassword(e.target.value)
+              if (fieldErrors.confirmPassword) validateForm()
+            }}
             margin="normal"
             required
+            error={!!fieldErrors.confirmPassword}
+            helperText={fieldErrors.confirmPassword}
           />
           <Button
             type="submit"

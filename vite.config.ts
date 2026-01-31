@@ -19,8 +19,15 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api": {
+      // Auth endpoints stay in Node.js backend
+      "/api/auth": {
         target: "http://127.0.0.1:3000",
+        changeOrigin: true,
+        secure: false,
+      },
+      // All other API endpoints route to .NET backend
+      "/api": {
+        target: "http://localhost:5169",
         changeOrigin: true,
         secure: false,
       },

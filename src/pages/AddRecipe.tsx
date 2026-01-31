@@ -18,6 +18,7 @@ import { TiDelete } from "react-icons/ti"
 import { FaSpinner } from "react-icons/fa"
 import { useNavigate } from "react-router-dom"
 import { authenticatedFetch } from "../utils/api"
+import { z } from "zod"
 
 export default function AddRecipe() {
   // State management
@@ -50,20 +51,58 @@ export default function AddRecipe() {
   })
   const [images, setImages] = useState<File[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const navigate = useNavigate()
 
+  // Zod validation schema
+  const recipeSchema = z.object({
+    title: z.string().min(1, "Title is required").max(255, "Title must be 255 characters or less"),
+    description: z.string().min(1, "Description is required"),
+    instructions: z.string().min(1, "Instructions are required"),
+    activeTime: z.number().min(0, "Active time must be 0 or greater"),
+    totalTime: z.number().min(1, "Total time must be at least 1 minute"),
+    servings: z.number().min(1, "Servings must be at least 1"),
+    categories: z.array(z.string()).min(1, "At least one category is required"),
+    ingredients: z.array(z.object({
+      name: z.string().min(1, "Ingredient name is required"),
+      quantity: z.string().min(1, "Quantity is required"),
+      unit: z.string().min(1, "Unit is required"),
+    })).min(1, "At least one ingredient is required"),
+    images: z.array(z.instanceof(File)).min(1, "At least one image is required"),
+  })
+
   // Validation helpers
-  const getFieldError = (value: string | number | string[] | ""): boolean => {
-    if (!hasAttemptedSubmit) return false
-    return !value || (Array.isArray(value) && value.length === 0)
+  const getFieldError = (fieldName: string): string => {
+    if (!hasAttemptedSubmit) return ""
+    return fieldErrors[fieldName] || ""
   }
 
-  const getHelperText = (
-    fieldName: string,
-    value: string | number | string[] | ""
-  ): string => {
-    if (!hasAttemptedSubmit) return ""
-    return getFieldError(value) ? `${fieldName} is required` : ""
+  const validateForm = (): boolean => {
+    try {
+      recipeSchema.parse({
+        title,
+        description,
+        instructions,
+        activeTime: typeof activeTime === "number" ? activeTime : 0,
+        totalTime: typeof totalTime === "number" ? totalTime : 0,
+        servings: typeof servings === "number" ? servings : 0,
+        categories,
+        ingredients,
+        images,
+      })
+      setFieldErrors({})
+      return true
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const errors: Record<string, string> = {}
+        err.errors.forEach((error) => {
+          const path = error.path.join(".")
+          errors[path] = error.message
+        })
+        setFieldErrors(errors)
+      }
+      return false
+    }
   }
 
   // Handlers
@@ -81,26 +120,24 @@ export default function AddRecipe() {
   const handleAddRecipe = async () => {
     setHasAttemptedSubmit(true)
 
-    // Validate required fields
-    if (
-      !title ||
-      !description ||
-      !instructions ||
-      !activeTime ||
-      !totalTime ||
-      !servings ||
-      categories.length === 0 ||
-      ingredients.length === 0 ||
-      images.length === 0
-    ) {
+    // Validate using Zod schema
+    if (!validateForm()) {
       return
+    }
+
+    // Additional file size validation
+    const maxFileSize = 5 * 1024 * 1024 // 5 MB
+    for (const image of images) {
+      if (image.size > maxFileSize) {
+        setError(`File ${image.name} is too large. Maximum size is 5 MB.`)
+        setFieldErrors({ ...fieldErrors, images: "File size must be 5 MB or less" })
+        return
+      }
     }
 
     setIsSubmitting(true)
     setError(null)
     const formData = new FormData()
-    // TODO: Add user authentication and get user ID
-    formData.append("userId", "1") // Hardcoded user ID for now
     formData.append("title", title)
     formData.append("description", description)
     formData.append("instructions", instructions)
@@ -113,13 +150,8 @@ export default function AddRecipe() {
     // Convert ingredients to JSON string
     formData.append("ingredients", JSON.stringify(ingredients))
 
-    // Check file sizes and append images
-    const maxFileSize = 5 * 1024 * 1024 // 5 MB
+    // Append images (file size already validated)
     for (const image of images) {
-      if (image.size > maxFileSize) {
-        setError(`File ${image.name} is too large. Maximum size is 5 MB.`)
-        return
-      }
       formData.append("images", image)
     }
 
@@ -181,34 +213,43 @@ export default function AddRecipe() {
               <TextField
                 label="Title"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => {
+                  setTitle(e.target.value)
+                  if (hasAttemptedSubmit) validateForm()
+                }}
                 fullWidth
-                error={getFieldError(title)}
-                helperText={getHelperText("Title", title)}
+                error={!!getFieldError("title")}
+                helperText={getFieldError("title")}
               />
             </Grid>
             <Grid size={{ xs: 12 }}>
               <TextField
                 label="Description"
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  setDescription(e.target.value)
+                  if (hasAttemptedSubmit) validateForm()
+                }}
                 fullWidth
                 multiline
                 rows={3}
-                error={getFieldError(description)}
-                helperText={getHelperText("Description", description)}
+                error={!!getFieldError("description")}
+                helperText={getFieldError("description")}
               />
             </Grid>
             <Grid size={{ xs: 12 }}>
               <TextField
                 label="Instructions"
                 value={instructions}
-                onChange={(e) => setInstructions(e.target.value)}
+                onChange={(e) => {
+                  setInstructions(e.target.value)
+                  if (hasAttemptedSubmit) validateForm()
+                }}
                 fullWidth
                 multiline
                 rows={4}
-                error={getFieldError(instructions)}
-                helperText={getHelperText("Instructions", instructions)}
+                error={!!getFieldError("instructions")}
+                helperText={getFieldError("instructions")}
               />
             </Grid>
             <Grid size={{ xs: 4 }}>
@@ -216,10 +257,13 @@ export default function AddRecipe() {
                 label="Active Time (minutes)"
                 type="number"
                 value={activeTime}
-                onChange={(e) => setActiveTime(Number(e.target.value) || "")}
+                onChange={(e) => {
+                  setActiveTime(Number(e.target.value) || "")
+                  if (hasAttemptedSubmit) validateForm()
+                }}
                 fullWidth
-                error={getFieldError(activeTime)}
-                helperText={getHelperText("Active time", activeTime)}
+                error={!!getFieldError("activeTime")}
+                helperText={getFieldError("activeTime")}
               />
             </Grid>
             <Grid size={{ xs: 4 }}>
@@ -227,10 +271,13 @@ export default function AddRecipe() {
                 label="Total Time (minutes)"
                 type="number"
                 value={totalTime}
-                onChange={(e) => setTotalTime(Number(e.target.value) || "")}
+                onChange={(e) => {
+                  setTotalTime(Number(e.target.value) || "")
+                  if (hasAttemptedSubmit) validateForm()
+                }}
                 fullWidth
-                error={getFieldError(totalTime)}
-                helperText={getHelperText("Total time", totalTime)}
+                error={!!getFieldError("totalTime")}
+                helperText={getFieldError("totalTime")}
               />
             </Grid>
             <Grid size={{ xs: 4 }}>
@@ -238,27 +285,31 @@ export default function AddRecipe() {
                 label="Servings"
                 type="number"
                 value={servings}
-                onChange={(e) => setServings(Number(e.target.value) || "")}
+                onChange={(e) => {
+                  setServings(Number(e.target.value) || "")
+                  if (hasAttemptedSubmit) validateForm()
+                }}
                 fullWidth
-                error={getFieldError(servings)}
-                helperText={getHelperText("Servings", servings)}
+                error={!!getFieldError("servings")}
+                helperText={getFieldError("servings")}
               />
             </Grid>
 
             {/* Categories */}
             <Grid size={{ xs: 12 }}>
-              <FormControl fullWidth error={getFieldError(categories)}>
+              <FormControl fullWidth error={!!getFieldError("categories")}>
                 <InputLabel>Categories</InputLabel>
                 <Select
                   multiple
                   value={categories}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setCategories(
                       typeof e.target.value === "string"
                         ? e.target.value.split(",")
                         : e.target.value
                     )
-                  }
+                    if (hasAttemptedSubmit) validateForm()
+                  }}
                   renderValue={(selected) => (
                     <Box sx={{ display: "flex", gap: 0.5 }}>
                       {selected.map((value) => (
@@ -273,9 +324,9 @@ export default function AddRecipe() {
                     </MenuItem>
                   ))}
                 </Select>
-                {getFieldError(categories) && (
+                {getFieldError("categories") && (
                   <FormHelperText>
-                    Please select at least one category
+                    {getFieldError("categories")}
                   </FormHelperText>
                 )}
               </FormControl>
@@ -358,9 +409,9 @@ export default function AddRecipe() {
                   </Typography>
                 ))}
               </Box>
-              {hasAttemptedSubmit && ingredients.length === 0 && (
+              {getFieldError("ingredients") && (
                 <Typography color="error" variant="caption">
-                  Please add at least one ingredient
+                  {getFieldError("ingredients")}
                 </Typography>
               )}
             </Grid>
@@ -374,7 +425,7 @@ export default function AddRecipe() {
                 sx={{
                   border: (theme) =>
                     `1px solid ${
-                      hasAttemptedSubmit && images.length === 0
+                      getFieldError("images")
                         ? theme.palette.error.main
                         : theme.palette.divider
                     }`,
@@ -387,13 +438,16 @@ export default function AddRecipe() {
                   type="file"
                   multiple
                   accept="image/*"
-                  onChange={(e) => setImages(Array.from(e.target.files || []))}
+                  onChange={(e) => {
+                    setImages(Array.from(e.target.files || []))
+                    if (hasAttemptedSubmit) validateForm()
+                  }}
                   style={{ width: "100%" }}
                 />
               </Box>
-              {hasAttemptedSubmit && images.length === 0 && (
+              {getFieldError("images") && (
                 <Typography color="error" variant="caption">
-                  Please upload at least one image
+                  {getFieldError("images")}
                 </Typography>
               )}
               {images.length > 0 && (

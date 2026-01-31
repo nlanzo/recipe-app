@@ -27,7 +27,7 @@
     <!-- AWS SDKs -->
     <PackageReference Include="AWSSDK.S3" Version="3.7.401" />
     <PackageReference Include="AWSSDK.SimpleEmail" Version="3.7.401" />
-    <!-- OpenAI -->
+    <!-- OpenAI - Using OpenAI_API for compatibility -->
     <PackageReference Include="OpenAI" Version="1.10.0" />
     <!-- Validation -->
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />

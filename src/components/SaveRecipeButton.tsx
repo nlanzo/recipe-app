@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { Button } from "@mui/material"
+import { Button, CircularProgress } from "@mui/material"
 import { BsBookmark, BsBookmarkFill } from "react-icons/bs"
 import { useAuth } from "../contexts/useAuth"
 import { useNavigate } from "react-router-dom"
@@ -16,6 +16,7 @@ interface SavedRecipe {
 
 export default function SaveRecipeButton({ recipeId }: Props) {
   const [isSaved, setIsSaved] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
@@ -59,6 +60,7 @@ export default function SaveRecipeButton({ recipeId }: Props) {
       return
     }
 
+    setIsLoading(true)
     try {
       const response = await authenticatedFetch(
         `/api/recipes/${recipeId}/save`,
@@ -73,6 +75,8 @@ export default function SaveRecipeButton({ recipeId }: Props) {
       }
     } catch (error) {
       console.error("Error toggling save status:", error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -81,11 +85,26 @@ export default function SaveRecipeButton({ recipeId }: Props) {
       variant="contained"
       color="primary"
       onClick={handleSaveToggle}
+      disabled={isLoading}
       startIcon={
-        isAuthenticated && isSaved ? <BsBookmarkFill /> : <BsBookmark />
+        isLoading ? (
+          <CircularProgress size={16} color="inherit" />
+        ) : isAuthenticated && isSaved ? (
+          <BsBookmarkFill />
+        ) : (
+          <BsBookmark />
+        )
       }
     >
-      {isAuthenticated ? (isSaved ? "Saved" : "Save Recipe") : "Login to Save"}
+      {isLoading
+        ? isSaved
+          ? "Unsaving..."
+          : "Saving..."
+        : isAuthenticated
+          ? isSaved
+            ? "Saved"
+            : "Save Recipe"
+          : "Login to Save"}
     </Button>
   )
 }

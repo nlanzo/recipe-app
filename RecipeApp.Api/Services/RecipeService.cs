@@ -491,7 +491,14 @@ public class RecipeService : IRecipeService
             _context.RecipeCategories.RemoveRange(recipeCategories);
             await _context.SaveChangesAsync();
 
-            // Step 4: Delete recipe
+            // Step 4: Delete saved recipes
+            var savedRecipes = await _context.SavedRecipes
+                .Where(sr => sr.RecipeId == id)
+                .ToListAsync();
+            _context.SavedRecipes.RemoveRange(savedRecipes);
+            await _context.SaveChangesAsync();
+
+            // Step 5: Delete recipe
             _context.Recipes.Remove(recipe);
             await _context.SaveChangesAsync();
 

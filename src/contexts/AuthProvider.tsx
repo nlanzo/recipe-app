@@ -1,7 +1,11 @@
 import { useState, useEffect, ReactNode } from "react"
 import { User } from "./types"
 import { AuthContext } from "./AuthContext"
-import { getAccessToken, setAccessToken, refreshAccessToken } from "../utils/auth"
+import {
+  getAccessToken,
+  setAccessToken,
+  refreshAccessToken,
+} from "../utils/auth"
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -46,18 +50,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setAccessToken(storedToken)
           setToken(storedToken)
           setUser(JSON.parse(storedUser))
-        } else {
-          // Try to refresh the token using the HTTP-only cookie
+        } else if (storedToken) {
+          // We have a token but no user - try to refresh to get a valid session
+          // This handles cases where localStorage token expired but refresh cookie is still valid
           try {
             const newToken = await refreshAccessToken()
-            // If we have a token but no user, fetch the user data
-            // This would need a proper endpoint to fetch user data by token
             setToken(newToken)
           } catch {
-            // If refresh fails, that's okay - user is just not logged in
+            // If refresh fails, clear the stale token
+            setAccessToken(null)
+            setToken(null)
             console.log("No valid session found")
           }
         }
+        // If no token at all, don't attempt refresh - user is definitely not logged in
       } catch (error) {
         console.error("Error initializing auth:", error)
       } finally {
