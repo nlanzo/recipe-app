@@ -59,7 +59,7 @@ export default function AddRecipe() {
     title: z.string().min(1, "Title is required").max(255, "Title must be 255 characters or less"),
     description: z.string().min(1, "Description is required"),
     instructions: z.string().min(1, "Instructions are required"),
-    activeTime: z.number().min(0, "Active time must be 0 or greater"),
+    activeTime: z.number().min(1, "Active time must be at least 1 minute"),
     totalTime: z.number().min(1, "Total time must be at least 1 minute"),
     servings: z.number().min(1, "Servings must be at least 1"),
     categories: z.array(z.string()).min(1, "At least one category is required"),

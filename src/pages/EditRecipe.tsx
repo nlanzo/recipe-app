@@ -100,7 +100,7 @@ export default function EditRecipe() {
       .max(255, "Title must be 255 characters or less"),
     description: z.string().min(1, "Description is required"),
     instructions: z.string().min(1, "Instructions are required"),
-    activeTimeInMinutes: z.number().min(0, "Active time must be 0 or greater"),
+    activeTimeInMinutes: z.number().min(1, "Active time must be at least 1 minute"),
     totalTimeInMinutes: z
       .number()
       .min(1, "Total time must be at least 1 minute"),
