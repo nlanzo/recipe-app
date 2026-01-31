@@ -71,6 +71,7 @@ public class RecipeService : IRecipeService
         var searchTerm = query.ToLower();
 
         var baseQuery = _context.Recipes
+            .Include(r => r.User)
             .Include(r => r.Images.Where(i => i.IsPrimary))
             .Where(r =>
                 r.Title.ToLower().Contains(searchTerm) ||
@@ -93,6 +94,7 @@ public class RecipeService : IRecipeService
             {
                 Id = r.Id,
                 Title = r.Title,
+                Username = r.User.Username,
                 CreatedAt = r.CreatedAt,
                 TotalTimeInMinutes = r.TotalTimeInMinutes,
                 NumberOfServings = r.NumberOfServings,
@@ -222,12 +224,19 @@ public class RecipeService : IRecipeService
                     await _context.SaveChangesAsync();
                 }
 
+                if (string.IsNullOrWhiteSpace(ingredientDto.Unit))
+                {
+                    throw new InvalidOperationException($"Unit is required for ingredient '{ingredientDto.Name}'");
+                }
+
                 var unit = await _context.Units
-                    .FirstOrDefaultAsync(u => u.Name == ingredientDto.Unit);
+                    .FirstOrDefaultAsync(u => u.Name.ToLower() == ingredientDto.Unit.ToLower());
 
                 if (unit == null)
                 {
-                    throw new InvalidOperationException($"Invalid unit: {ingredientDto.Unit}");
+                    // Get available units for better error message
+                    var availableUnits = await _context.Units.Select(u => u.Name).ToListAsync();
+                    throw new InvalidOperationException($"Invalid unit: '{ingredientDto.Unit}'. Available units: {string.Join(", ", availableUnits)}");
                 }
 
                 _context.RecipeIngredients.Add(new RecipeIngredient
@@ -463,11 +472,26 @@ public class RecipeService : IRecipeService
                 }
             }
 
-            // Delete related records (cascade will handle most, but we'll be explicit)
+            // Delete related records in the correct order to avoid foreign key constraint violations
+            // Step 1: Delete images from database
             _context.Images.RemoveRange(images);
             await _context.SaveChangesAsync();
 
-            // Delete recipe (cascade will handle recipe_ingredients and recipe_categories)
+            // Step 2: Delete recipe ingredients
+            var recipeIngredients = await _context.RecipeIngredients
+                .Where(ri => ri.RecipeId == id)
+                .ToListAsync();
+            _context.RecipeIngredients.RemoveRange(recipeIngredients);
+            await _context.SaveChangesAsync();
+
+            // Step 3: Delete recipe categories
+            var recipeCategories = await _context.RecipeCategories
+                .Where(rc => rc.RecipeId == id)
+                .ToListAsync();
+            _context.RecipeCategories.RemoveRange(recipeCategories);
+            await _context.SaveChangesAsync();
+
+            // Step 4: Delete recipe
             _context.Recipes.Remove(recipe);
             await _context.SaveChangesAsync();
 

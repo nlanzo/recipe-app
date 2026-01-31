@@ -22,7 +22,7 @@ public class Image
     [Column("alt_text")]
     public string? AltText { get; set; }
 
-    [Column("created_at")]
+    [Column("createdAt")]
     public DateTime CreatedAt { get; set; }
 
     [Column("is_primary")]

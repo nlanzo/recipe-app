@@ -26,12 +26,10 @@ public class CreateRecipeDto
     [Range(1, int.MaxValue)]
     public int Servings { get; set; }
 
-    [Required]
-    [MinLength(1)]
+    // Categories and Ingredients come as JSON strings in form-data
+    // They will be parsed in the controller before validation
     public List<string> Categories { get; set; } = new();
 
-    [Required]
-    [MinLength(1)]
     public List<CreateIngredientDto> Ingredients { get; set; } = new();
 }
 
