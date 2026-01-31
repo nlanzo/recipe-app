@@ -49,3 +49,4 @@ RecipeApp.Api/.vscode/
 RecipeApp.Api/appsettings.Development.json
 RecipeApp.Api/appsettings.Production.json
 RecipeApp.Api/dotnet_migration_docs/
+publish/
