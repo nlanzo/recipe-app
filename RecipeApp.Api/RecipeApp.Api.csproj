@@ -37,6 +37,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
     <!-- System.IdentityModel.Tokens.Jwt -->
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.2.1" />
+    <!-- BCrypt for password hashing -->
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
   </ItemGroup>
 
 </Project>

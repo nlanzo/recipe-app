@@ -503,4 +503,92 @@ public class RecipeService : IRecipeService
             throw;
         }
     }
+
+    public async Task SaveRecipeAsync(int recipeId, int userId)
+    {
+        // Check if recipe exists
+        var recipeExists = await _context.Recipes.AnyAsync(r => r.Id == recipeId);
+        if (!recipeExists)
+        {
+            throw new KeyNotFoundException("Recipe not found");
+        }
+
+        // Check if already saved
+        var existingSave = await _context.SavedRecipes
+            .FirstOrDefaultAsync(sr => sr.UserId == userId && sr.RecipeId == recipeId);
+
+        if (existingSave != null)
+        {
+            throw new InvalidOperationException("Recipe already saved");
+        }
+
+        // Save the recipe
+        var savedRecipe = new SavedRecipe
+        {
+            UserId = userId,
+            RecipeId = recipeId,
+            SavedAt = DateTime.UtcNow
+        };
+
+        _context.SavedRecipes.Add(savedRecipe);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UnsaveRecipeAsync(int recipeId, int userId)
+    {
+        var savedRecipe = await _context.SavedRecipes
+            .FirstOrDefaultAsync(sr => sr.UserId == userId && sr.RecipeId == recipeId);
+
+        if (savedRecipe == null)
+        {
+            throw new KeyNotFoundException("Saved recipe not found");
+        }
+
+        _context.SavedRecipes.Remove(savedRecipe);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<RecipeResponseDto>> GetSavedRecipesAsync(int userId)
+    {
+        var savedRecipes = await _context.SavedRecipes
+            .Where(sr => sr.UserId == userId)
+            .Include(sr => sr.Recipe)
+                .ThenInclude(r => r.User)
+            .Include(sr => sr.Recipe)
+                .ThenInclude(r => r.Images.Where(i => i.IsPrimary))
+            .Select(sr => new RecipeResponseDto
+            {
+                Id = sr.Recipe.Id,
+                Title = sr.Recipe.Title,
+                Username = sr.Recipe.User.Username,
+                CreatedAt = sr.Recipe.CreatedAt,
+                TotalTimeInMinutes = sr.Recipe.TotalTimeInMinutes,
+                NumberOfServings = sr.Recipe.NumberOfServings,
+                ImageUrl = sr.Recipe.Images.Where(i => i.IsPrimary).Select(i => i.ImageUrl).FirstOrDefault()
+            })
+            .ToListAsync();
+
+        return savedRecipes;
+    }
+
+    public async Task<List<RecipeResponseDto>> GetMyRecipesAsync(int userId)
+    {
+        var myRecipes = await _context.Recipes
+            .Where(r => r.UserId == userId)
+            .Include(r => r.User)
+            .Include(r => r.Images.Where(i => i.IsPrimary))
+            .Select(r => new RecipeResponseDto
+            {
+                Id = r.Id,
+                Title = r.Title,
+                Username = r.User.Username,
+                CreatedAt = r.CreatedAt,
+                TotalTimeInMinutes = r.TotalTimeInMinutes,
+                NumberOfServings = r.NumberOfServings,
+                ImageUrl = r.Images.Where(i => i.IsPrimary).Select(i => i.ImageUrl).FirstOrDefault()
+            })
+            .ToListAsync();
+
+        return myRecipes;
+    }
 }

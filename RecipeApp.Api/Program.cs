@@ -39,6 +39,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Register services
 builder.Services.AddScoped<IS3Service, S3Service>();
 builder.Services.AddScoped<IRecipeService, RecipeService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 // Ensure JWT secret is loaded from environment variables (for development)
 // This allows the .NET API to use the same JWT_SECRET as the Node.js server
