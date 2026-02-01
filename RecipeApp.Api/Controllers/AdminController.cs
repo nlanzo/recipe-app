@@ -56,8 +56,8 @@ public class AdminController : ControllerBase
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var searchLower = search.ToLower();
-                query = query.Where(r => 
-                    r.Title.ToLower().Contains(searchLower) || 
+                query = query.Where(r =>
+                    r.Title.ToLower().Contains(searchLower) ||
                     r.Description.ToLower().Contains(searchLower));
             }
 
@@ -163,8 +163,8 @@ public class AdminController : ControllerBase
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var searchLower = search.ToLower();
-                query = query.Where(u => 
-                    u.Username.ToLower().Contains(searchLower) || 
+                query = query.Where(u =>
+                    u.Username.ToLower().Contains(searchLower) ||
                     u.Email.ToLower().Contains(searchLower));
             }
 

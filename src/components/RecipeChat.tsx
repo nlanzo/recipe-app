@@ -85,7 +85,17 @@ export default function RecipeChat() {
           statusText: response.statusText,
           error: responseData,
         })
-        throw new Error(responseData.error || "Failed to get response")
+        
+        // Handle rate limiting (429) with user-friendly message
+        if (response.status === 429) {
+          const retryAfter = responseData.retryAfter || 60
+          const retryMinutes = Math.ceil(retryAfter / 60)
+          throw new Error(
+            `You've sent too many messages. Please wait ${retryMinutes} minute${retryMinutes > 1 ? 's' : ''} before trying again.`
+          )
+        }
+        
+        throw new Error(responseData.error || responseData.message || "Failed to get response")
       }
 
       setMessages((prev) => [

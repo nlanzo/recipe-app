@@ -13,7 +13,7 @@ public class AdminAuthorizeAttribute : Attribute, IAsyncAuthorizationFilter
     public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
     {
         var userIdClaim = context.HttpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
-        
+
         if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
         {
             context.Result = new UnauthorizedObjectResult(new { error = "Authentication required" });
@@ -22,7 +22,7 @@ public class AdminAuthorizeAttribute : Attribute, IAsyncAuthorizationFilter
 
         // Get DbContext from service provider
         var dbContext = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
-        
+
         // Check if user is admin
         var user = await dbContext.Users
             .AsNoTracking()

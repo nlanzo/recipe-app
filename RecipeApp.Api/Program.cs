@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
 using RecipeApp.Api.Data;
 using RecipeApp.Api.Middleware;
 using RecipeApp.Api.Services;
@@ -41,6 +43,52 @@ builder.Services.AddScoped<IS3Service, S3Service>();
 builder.Services.AddScoped<IRecipeService, RecipeService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+
+// Configure Rate Limiting
+var globalLimit = builder.Configuration.GetValue<int>("RateLimiting:Global:PermitLimit", 100);
+var globalWindowMinutes = builder.Configuration.GetValue<int>("RateLimiting:Global:WindowMinutes", 1);
+var chatLimit = builder.Configuration.GetValue<int>("RateLimiting:Chat:PermitLimit", 10);
+var chatWindowMinutes = builder.Configuration.GetValue<int>("RateLimiting:Chat:WindowMinutes", 1);
+var chatQueueLimit = builder.Configuration.GetValue<int>("RateLimiting:Chat:QueueLimit", 2);
+
+builder.Services.AddRateLimiter(options =>
+{
+    // Global rate limiter - applies to all endpoints by default
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.Identity?.IsAuthenticated == true
+                ? context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous"
+                : context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = globalLimit,
+                Window = TimeSpan.FromMinutes(globalWindowMinutes)
+            }));
+
+    // Chat-specific rate limiter - stricter limits for chat endpoint
+    options.AddFixedWindowLimiter("ChatPolicy", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = chatLimit;
+        limiterOptions.Window = TimeSpan.FromMinutes(chatWindowMinutes);
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = chatQueueLimit;
+    });
+
+    // Rate limit rejection response
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = 429; // Too Many Requests
+        var retryAfterSeconds = chatWindowMinutes * 60;
+        context.HttpContext.Response.Headers.RetryAfter = retryAfterSeconds.ToString();
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            error = "Rate limit exceeded",
+            message = "Too many requests. Please try again later.",
+            retryAfter = retryAfterSeconds
+        }, cancellationToken);
+    };
+});
 
 // Ensure JWT secret is loaded from environment variables (for development)
 // This allows the .NET API to use the same JWT_SECRET as the Node.js server
@@ -86,8 +134,8 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseCors("AllowFrontend");
 app.UseAuthentication(); // Must come before UseAuthorization
-app.UseMiddleware<JwtAuthMiddleware>(); // Keep for backward compatibility, but authentication is handled by the scheme
 app.UseAuthorization();
+app.UseRateLimiter(); // Enable rate limiting middleware
 app.MapControllers();
 
 app.Run();

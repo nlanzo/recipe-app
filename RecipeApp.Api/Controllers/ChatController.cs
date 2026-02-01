@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using RecipeApp.Api.DTOs;
 using RecipeApp.Api.Services;
 
@@ -9,6 +10,7 @@ namespace RecipeApp.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/chat")]
+[EnableRateLimiting("ChatPolicy")] // Apply chat-specific rate limiting
 public class ChatController : ControllerBase
 {
     private readonly IChatService _chatService;
@@ -44,6 +46,15 @@ public class ChatController : ControllerBase
             if (string.IsNullOrWhiteSpace(request.SessionId))
             {
                 return BadRequest(new { error = "sessionId is required" });
+            }
+
+            // Additional security: Validate message content length
+            foreach (var message in request.Messages)
+            {
+                if (message.Content != null && message.Content.Length > 5000)
+                {
+                    return BadRequest(new { error = "Message content cannot exceed 5000 characters" });
+                }
             }
 
             var response = await _chatService.ProcessChatAsync(request.SessionId, request.Messages);

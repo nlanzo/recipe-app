@@ -51,12 +51,12 @@ public class JwtAuthSchemeHandler : AuthenticationHandler<AuthenticationSchemeOp
             }, out SecurityToken validatedToken);
 
             var jwtToken = (JwtSecurityToken)validatedToken;
-            
+
             // Check if userId claim exists
             var userIdClaim = jwtToken.Claims.FirstOrDefault(x => x.Type == "userId");
             if (userIdClaim == null)
             {
-                Logger.LogWarning("Token is valid but missing 'userId' claim. Available claims: {Claims}", 
+                Logger.LogWarning("Token is valid but missing 'userId' claim. Available claims: {Claims}",
                     string.Join(", ", jwtToken.Claims.Select(c => c.Type)));
                 return Task.FromResult(AuthenticateResult.Fail("Token missing required 'userId' claim"));
             }
