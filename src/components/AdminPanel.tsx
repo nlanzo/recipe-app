@@ -309,6 +309,32 @@ export default function AdminPanel() {
     setSelectedUser(null)
   }
 
+  const handleDeleteUser = async (user: User) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete user "${user.username}"? This will permanently delete their account and all their recipes. This action cannot be undone.`
+      )
+    ) {
+      return
+    }
+
+    try {
+      const response = await authenticatedFetch(`/api/admin/users/${user.id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to delete user")
+      }
+
+      // Refresh the users list
+      fetchUsers()
+    } catch (error) {
+      handleApiError(error, "delete user")
+    }
+  }
+
   // User Recipes Component
   const UserRecipes = () => {
     if (!selectedUser) return null
@@ -460,18 +486,19 @@ export default function AdminPanel() {
                       <TableCell>Email</TableCell>
                       <TableCell>Created</TableCell>
                       <TableCell>Role</TableCell>
+                      <TableCell align="right">Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={4} align="center">
+                        <TableCell colSpan={5} align="center">
                           Loading...
                         </TableCell>
                       </TableRow>
                     ) : users.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} align="center">
+                        <TableCell colSpan={5} align="center">
                           No users found
                         </TableCell>
                       </TableRow>
@@ -479,15 +506,18 @@ export default function AdminPanel() {
                       users.map((user) => (
                         <TableRow
                           key={user.id}
-                          onClick={() => handleUserClick(user)}
                           sx={{
-                            cursor: "pointer",
                             "&:hover": {
                               backgroundColor: "rgba(0, 0, 0, 0.04)",
                             },
                           }}
                         >
-                          <TableCell>{user.username}</TableCell>
+                          <TableCell
+                            onClick={() => handleUserClick(user)}
+                            sx={{ cursor: "pointer" }}
+                          >
+                            {user.username}
+                          </TableCell>
                           <TableCell>{user.email}</TableCell>
                           <TableCell>{formatDate(user.createdAt)}</TableCell>
                           <TableCell>
@@ -496,6 +526,20 @@ export default function AdminPanel() {
                               color={user.isAdmin ? "primary" : "default"}
                               size="small"
                             />
+                          </TableCell>
+                          <TableCell align="right">
+                            <IconButton
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteUser(user)
+                              }}
+                              color="error"
+                              size="small"
+                              disabled={user.isAdmin}
+                              title={user.isAdmin ? "Cannot delete admin users" : "Delete user"}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
                           </TableCell>
                         </TableRow>
                       ))

@@ -253,4 +253,49 @@ public class AdminController : ControllerBase
             return StatusCode(500, new { error = "Failed to fetch user recipes", message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Delete a user (admin only)
+    /// </summary>
+    /// <param name="id">The user ID to delete</param>
+    /// <param name="userService">The user service instance</param>
+    /// <returns>Success message</returns>
+    /// <response code="200">User deleted successfully</response>
+    /// <response code="400">If attempting to delete yourself or another admin</response>
+    /// <response code="401">If the user is not authenticated</response>
+    /// <response code="403">If the user is not an admin</response>
+    /// <response code="404">If the user is not found</response>
+    /// <response code="500">If there was an error deleting the user</response>
+    [HttpDelete("users/{id}")]
+    [AdminAuthorize]
+    public async Task<ActionResult> DeleteUser(int id, [FromServices] IUserService userService)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var adminUserId))
+            {
+                return Unauthorized(new { error = "Authentication required" });
+            }
+
+            await userService.DeleteUserAsync(id, adminUserId);
+            return Ok(new { message = "User deleted successfully" });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Failed to delete user", message = ex.Message });
+        }
+    }
 }
